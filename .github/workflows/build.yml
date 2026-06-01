@@ -19,7 +19,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
 
       - name: Build AIDE Pro
         run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils;utils" aide.py
@@ -50,7 +50,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
 
       - name: Build AIDE Pro
         run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils:utils" aide.py

@@ -16,10 +16,10 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller certifi httpx
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller requests certifi httpx
 
       - name: Build AIDE Pro
-        run: pyinstaller --onefile --windowed --name "AIDE_Pro" --add-data "utils:utils" --hidden-import certifi --hidden-import urllib3 --hidden-import httpx aide.py
+        run: pyinstaller --onefile --windowed --name "AIDE_Pro" --add-data "utils:utils" --hidden-import certifi --hidden-import urllib3 --hidden-import httpx --hidden-import requests aide.py
 
       - name: Upload
         uses: actions/upload-artifact@v4

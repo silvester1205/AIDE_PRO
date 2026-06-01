@@ -19,10 +19,15 @@ jobs:
         run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
 
       - name: Build AIDE Pro
-        run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils:utils" aide.py
+        run: pyinstaller --onedir --windowed --name "AIDE Pro" --add-data "utils:utils" aide.py
+
+      - name: Package .app
+        run: |
+          cd dist
+          zip -r AIDE_Pro_Mac.zip "AIDE Pro.app"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: AIDE-Mac-Pro
-          path: "dist/AIDE Pro"
+          path: "dist/AIDE_Pro_Mac.zip"

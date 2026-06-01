@@ -3,11 +3,14 @@ name: Build AIDE
 on:
   push:
     branches: [main, master]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: cmd
     steps:
       - uses: actions/checkout@v4
 
@@ -16,26 +19,21 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: |
-          pip install PyQt6 pymupdf pandas openpyxl pillow openai
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai
 
       - name: Build AIDE Pro
-        run: |
-          pyinstaller --onefile --windowed --name "AIDE Pro" ^
-            --add-data "utils;utils" aide.py
+        run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils;utils" aide.py
 
       - name: Build AIDE Free
-        run: |
-          pyinstaller --onefile --windowed --name "AIDE Free" ^
-            --add-data "utils;utils" aide_trial.py
+        run: pyinstaller --onefile --windowed --name "AIDE Free" --add-data "utils;utils" aide_trial.py
 
       - name: Organize artifacts
         run: |
           mkdir dist_output
-          mkdir dist_output/AIDE_Pro
-          mkdir dist_output/AIDE_Free
-          move "dist/AIDE Pro.exe" dist_output/AIDE_Pro/
-          move "dist/AIDE Free.exe" dist_output/AIDE_Free/
+          mkdir dist_output\AIDE_Pro
+          mkdir dist_output\AIDE_Free
+          move dist\"AIDE Pro.exe" dist_output\AIDE_Pro\
+          move dist\"AIDE Free.exe" dist_output\AIDE_Free\
 
       - uses: actions/upload-artifact@v4
         with:
@@ -52,25 +50,19 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: |
-          pip install PyQt6 pymupdf pandas openpyxl pillow openai
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai
 
       - name: Build AIDE Pro
-        run: |
-          pyinstaller --onefile --windowed --name "AIDE Pro" \
-            --add-data "utils:utils" aide.py
+        run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils:utils" aide.py
 
       - name: Build AIDE Free
-        run: |
-          pyinstaller --onefile --windowed --name "AIDE Free" \
-            --add-data "utils:utils" aide_trial.py
+        run: pyinstaller --onefile --windowed --name "AIDE Free" --add-data "utils:utils" aide_trial.py
 
       - name: Organize artifacts
         run: |
-          mkdir -p dist_output/AIDE_Pro
-          mkdir -p dist_output/AIDE_Free
-          mv "dist/AIDE Pro" dist_output/AIDE_Pro/
-          mv "dist/AIDE Free" dist_output/AIDE_Free/
+          mkdir -p dist_output/AIDE_Pro dist_output/AIDE_Free
+          mv dist/AIDE_Pro dist_output/AIDE_Pro/
+          mv dist/AIDE_Free dist_output/AIDE_Free/
 
       - uses: actions/upload-artifact@v4
         with:

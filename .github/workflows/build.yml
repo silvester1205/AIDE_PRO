@@ -6,40 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: cmd
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
-        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
-
-      - name: Build AIDE Pro
-        run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils;utils" aide.py
-
-      - name: Build AIDE Free
-        run: pyinstaller --onefile --windowed --name "AIDE Free" --add-data "utils;utils" aide_trial.py
-
-      - name: Organize artifacts
-        run: |
-          mkdir dist_output
-          mkdir dist_output\AIDE_Pro
-          mkdir dist_output\AIDE_Free
-          move dist\"AIDE Pro.exe" dist_output\AIDE_Pro\
-          move dist\"AIDE Free.exe" dist_output\AIDE_Free\
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AIDE-Windows
-          path: dist_output/
-
   build-mac:
     runs-on: macos-latest
     steps:
@@ -55,16 +21,8 @@ jobs:
       - name: Build AIDE Pro
         run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils:utils" aide.py
 
-      - name: Build AIDE Free
-        run: pyinstaller --onefile --windowed --name "AIDE Free" --add-data "utils:utils" aide_trial.py
-
-      - name: Organize artifacts
-        run: |
-          mkdir -p dist_output/AIDE_Pro dist_output/AIDE_Free
-          mv dist/AIDE_Pro dist_output/AIDE_Pro/
-          mv dist/AIDE_Free dist_output/AIDE_Free/
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload
+        uses: actions/upload-artifact@v4
         with:
-          name: AIDE-Mac
-          path: dist_output/
+          name: AIDE-Mac-Pro
+          path: "dist/AIDE Pro"

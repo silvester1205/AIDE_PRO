@@ -19,7 +19,7 @@ jobs:
         run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
 
       - name: Build AIDE Pro
-        run: pyinstaller --onedir --windowed --name "AIDE Pro" --add-data "utils:utils" aide.py
+        run: pyinstaller --onedir --windowed --name "AIDE Pro" --add-data "utils:utils" --collect-all PyQt6 aide.py
 
       - name: Package .app
         run: |

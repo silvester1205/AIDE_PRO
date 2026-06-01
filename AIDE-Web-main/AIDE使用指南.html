@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIDE - AI辅助数据提取工具使用指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .slideshow {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            padding: 60px 80px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        .slide h1 {
+            font-size: 3.5rem;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide h2 {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            color: #fff;
+        }
+
+        .slide h3 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #a8d8ea;
+        }
+
+        .slide p, .slide li {
+            font-size: 1.4rem;
+            line-height: 1.8;
+            color: #e0e0e0;
+            max-width: 900px;
+        }
+
+        .slide ul {
+            text-align: left;
+            list-style: none;
+        }
+
+        .slide li {
+            margin: 15px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .slide li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #667eea 0%, #764ba2 100%);
+            padding: 5px 15px;
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .warning {
+            background: #ff6b6b;
+            padding: 5px 15px;
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .success {
+            background: #51cf66;
+            padding: 5px 15px;
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .info {
+            background: #339af0;
+            padding: 5px 15px;
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            width: 100%;
+            max-width: 1200px;
+            text-align: left;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            z-index: 1000;
+        }
+
+        .slide-number {
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            color: rgba(255,255,255,0.5);
+            font-size: 1rem;
+        }
+
+        .logo {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        table {
+            width: 100%;
+            max-width: 1000px;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        th {
+            background: rgba(102, 126, 234, 0.2);
+            font-weight: 600;
+        }
+
+        .kbd {
+            background: rgba(255,255,255,0.1);
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="slideshow">
+        <!-- 第1页：封面 -->
+        <div class="slide active">
+            <div class="logo">🦉</div>
+            <h1>AIDE</h1>
+            <h2>AI-Assisted Data Extraction</h2>
+            <p style="margin-top: 30px; font-size: 1.6rem;">AI辅助数据提取工具</p>
+            <p style="margin-top: 20px; color: #888;">系统性综述与Meta分析的文献数据提取助手</p>
+        </div>
+
+        <!-- 第2页：环境准备 -->
+        <div class="slide">
+            <h2>🖥️ 本地部署运行</h2>
+            <div style="max-width: 1000px; text-align: left;">
+                <div class="card" style="margin-bottom: 25px;">
+                    <h3>前置要求</h3>
+                    <ul>
+                        <li>安装 <strong>Node.js</strong>（推荐 LTS 版本）<br>
+                        <span style="color: #888; font-size: 0.9rem;">下载地址：https://nodejs.org/</span></li>
+                        <li>下载 AIDE 项目代码到本地</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="margin-bottom: 25px; border-left: 4px solid #51cf66;">
+                    <h3 style="color: #51cf66;">启动步骤</h3>
+                    <ol style="line-height: 2.2; font-size: 1.1rem;">
+                        <li>1. 打开 <strong>Node.js Command Prompt</strong></li>
+                        <li>2. 切换到项目目录：<code class="kbd">cd /d E:\AIDE\AIDE-Web-main</code></li>
+                        <li>3. 安装依赖（首次）：<code class="kbd">npm install</code></li>
+                        <li>4. 启动服务：<code class="kbd">npm run dev</code></li>
+                        <li>5. 浏览器自动打开 <code class="kbd">http://localhost:5173</code></li>
+                    </ol>
+                </div>
+
+                <div style="background: rgba(255,193,7,0.1); padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
+                    <strong>💡 提示：</strong>后续使用只需执行第 2、4 步。按 <code class="kbd">Ctrl+C</code> 可停止服务。
+                </div>
+            </div>
+        </div>
+
+        <!-- 第3页：什么是AIDE -->
+        <div class="slide">
+            <h2>什么是 AIDE？</h2>
+            <div class="two-column">
+                <div class="card">
+                    <h3>📚 项目背景</h3>
+                    <ul>
+                        <li>用于系统性综述的文献数据提取</li>
+                        <li>基于 LLM（大语言模型）的AI辅助</li>
+                        <li>人机协作验证模式</li>
+                        <li>纯前端应用，无需后端服务器</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>🎯 核心特点</h3>
+                    <ul>
+                        <li><span class="success">人工验证</span>每个数据点</li>
+                        <li>支持多种 LLM 模型</li>
+                        <li>提供数据来源溯源</li>
+                        <li>输出标准化编码表单</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第3页：工作流程 -->
+        <div class="slide">
+            <h2>工作流程概览</h2>
+            <div style="display: flex; gap: 40px; margin-top: 30px;">
+                <div style="text-align: center;">
+                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 20px;">1</div>
+                    <h3>配置API</h3>
+                    <p style="font-size: 1rem;">设置LLM接口和密钥</p>
+                </div>
+                <div style="display: flex; align-items: center; font-size: 3rem; color: #667eea;">→</div>
+                <div style="text-align: center;">
+                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 20px;">2</div>
+                    <h3>上传编码表</h3>
+                    <p style="font-size: 1rem;">定义数据提取字段</p>
+                </div>
+                <div style="display: flex; align-items: center; font-size: 3rem; color: #667eea;">→</div>
+                <div style="text-align: center;">
+                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 20px;">3</div>
+                    <h3>分析PDF</h3>
+                    <p style="font-size: 1rem;">AI提取+人工验证</p>
+                </div>
+                <div style="display: flex; align-items: center; font-size: 3rem; color: #667eea;">→</div>
+                <div style="text-align: center;">
+                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 20px;">4</div>
+                    <h3>导出结果</h3>
+                    <p style="font-size: 1rem;">下载编码表单</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第4页：Step 1 配置API -->
+        <div class="slide">
+            <h2><span class="step-number">1</span>配置 API 设置</h2>
+            <div class="two-column" style="margin-top: 40px;">
+                <div>
+                    <h3>支持的 API 提供商</h3>
+                    <ul>
+                        <li>OpenRouter（推荐）</li>
+                        <li>Mistral AI</li>
+                        <li>OpenAI 兼容端点</li>
+                        <li>本地模型（LMStudio等）</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>配置步骤</h3>
+                    <ol style="text-align: left; line-height: 2.2;">
+                        <li>1. 进入 <strong>Setup</strong> 页面</li>
+                        <li>2. 输入 API 端点 URL</li>
+                        <li>3. 粘贴 API 密钥</li>
+                        <li>4. 选择模型（带<span class="success">free</span>标签为免费）</li>
+                        <li>5. <span class="warning">重要</span>：密钥仅存在浏览器，关闭即清除</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第5页：Step 2 编码表 -->
+        <div class="slide">
+            <h2><span class="step-number">2</span>上传编码表单</h2>
+            <div style="max-width: 1000px;">
+                <p style="margin-bottom: 30px;">编码表单定义了需要从文献中提取的数据字段</p>
+
+                <div class="two-column">
+                    <div class="card">
+                        <h3>📋 文件格式</h3>
+                        <ul>
+                            <li>CSV (.csv)</li>
+                            <li>Excel (.xls, .xlsx)</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>⚠️ 关键要求</h3>
+                        <ul>
+                            <li><strong>第一行</strong> = LLM提示词</li>
+                            <li>后续行 = 文献数据</li>
+                            <li>提示词越清晰，结果越准确</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; background: rgba(255,193,7,0.1); padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
+                    <strong>示例：</strong>第一行可以是 "What is the sample size?"、"What is the intervention?" 等
+                </div>
+            </div>
+        </div>
+
+        <!-- 第6页：Step 3 分析PDF -->
+        <div class="slide">
+            <h2><span class="step-number">3</span>分析 PDF 文献</h2>
+            <table>
+                <tr>
+                    <th>步骤</th>
+                    <th>操作</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>上传 PDF</td>
+                    <td>选择要分析的文献文件</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>选择处理模式</td>
+                    <td>Send PDF / Send text only</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>点击 <span class="highlight">Analyze PDF</span></td>
+                    <td>发送请求给 LLM</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>查看 Source</td>
+                    <td>展开查看原文出处、页码、章节</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>点击 <span class="success">Record</span></td>
+                    <td>确认并保存数据点</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>点击 <span class="info">Next PDF</span></td>
+                    <td>进入下一篇文献</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 第7页：核对功能 -->
+        <div class="slide">
+            <h2>数据核对功能</h2>
+            <div class="two-column">
+                <div class="card">
+                    <h3>🔍 Source 溯源</h3>
+                    <ul>
+                        <li>点击 Source 按钮展开详情</li>
+                        <li>显示原始文本片段</li>
+                        <li>显示章节位置（Results/Methods等）</li>
+                        <li>显示具体页码</li>
+                        <li>可一键复制原文</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>📖 Expand 放大</h3>
+                    <ul>
+                        <li>PDF 区域扩展至 70% 宽度</li>
+                        <li>自动放大到 180%</li>
+                        <li>更清晰查看原文</li>
+                        <li>便于核对提取内容</li>
+                        <li>点击 Collapse 恢复原状</li>
+                    </ul>
+                </div>
+            </div>
+            <p style="margin-top: 40px; background: rgba(255,107,107,0.2); padding: 20px; border-radius: 10px;">
+                <span class="warning">重要</span>：每个数据点必须经过人工验证才能 Record！
+            </p>
+        </div>
+
+        <!-- 第8页：Step 4 导出 -->
+        <div class="slide">
+            <h2><span class="step-number">4</span>导出结果</h2>
+            <div style="max-width: 900px;">
+                <div class="card" style="margin-bottom: 30px;">
+                    <h3>💾 下载编码表单</h3>
+                    <ul>
+                        <li>前往 <strong>Final Coding Form</strong> 页面</li>
+                        <li>查看所有已记录的数据</li>
+                        <li>支持导出为 Excel (.xlsx) 或 CSV</li>
+                        <li>包含所有文献的提取结果</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(255,193,7,0.1); padding: 25px; border-radius: 10px; border-left: 4px solid #ffc107;">
+                    <strong>⚠️ 数据保存提醒</strong>
+                    <p style="margin-top: 10px; font-size: 1.2rem;">
+                        所有数据存储在浏览器 sessionStorage 中<br>
+                        <span class="warning">关闭浏览器标签页后数据会丢失！</span><br>
+                        请务必在关闭前下载保存编码表单。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第9页：注意事项 -->
+        <div class="slide">
+            <h2>⚠️ 重要注意事项</h2>
+            <div style="max-width: 1000px; text-align: left;">
+                <div class="card" style="margin-bottom: 20px; border-left: 4px solid #ff6b6b;">
+                    <h3 style="color: #ff6b6b;">数据安全</h3>
+                    <ul>
+                        <li>API 密钥仅存储在浏览器 sessionStorage，关闭即清除</li>
+                        <li>PDF 内容仅在本地处理，不会上传到服务器</li>
+                        <li>仅在调用 LLM API 时数据会发送到模型提供商</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                    <h3 style="color: #ffc107;">使用限制</h3>
+                    <ul>
+                        <li>需要稳定的网络连接（调用 LLM API）</li>
+                        <li>免费模型可能有调用限制或准确率差异</li>
+                        <li>复杂表格数据可能需要人工仔细核对</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="border-left: 4px solid #51cf66;">
+                    <h3 style="color: #51cf66;">最佳实践</h3>
+                    <ul>
+                        <li>定期下载保存编码表单（建议每篇文献后保存）</li>
+                        <li>使用清晰、具体的提示词（Prompt）</li>
+                        <li>对关键数据务必核对 Source 中的原文</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第10页：总结 -->
+        <div class="slide">
+            <h2>总结</h2>
+            <div style="max-width: 900px;">
+                <p style="font-size: 1.6rem; margin-bottom: 40px;">
+                    AIDE = <span class="highlight">AI 效率</span> + <span class="success">人工验证</span>
+                </p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; margin-bottom: 50px;">
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">🚀</div>
+                        <h3>高效</h3>
+                        <p style="font-size: 1rem;">一次分析获取所有字段</p>
+                    </div>
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+                        <h3>可靠</h3>
+                        <p style="font-size: 1rem;">人机协作验证机制</p>
+                    </div>
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">🔒</div>
+                        <h3>安全</h3>
+                        <p style="font-size: 1rem;">本地处理，数据可控</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" onclick="prevSlide()">← 上一页</button>
+        <button class="nav-btn" onclick="nextSlide()">下一页 →</button>
+    </div>
+
+    <div class="slide-number" id="slideNumber">1 / 11</div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === index);
+            });
+
+            // Update progress bar
+            const progress = ((index + 1) / totalSlides) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            // Update slide number
+            document.getElementById('slideNumber').textContent = (index + 1) + ' / 11';
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                showSlide(currentSlide);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevSlide();
+            }
+        });
+
+        // Initialize
+        showSlide(0);
+    </script>
+</body>
+</html>

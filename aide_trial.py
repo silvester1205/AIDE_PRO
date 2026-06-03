@@ -893,10 +893,27 @@ class SetupTab(QWidget):
 
         # Handle Custom Outcomes template
         if idx == 3 and prompts[1] is None:
-            outcomes, ok = QInputDialog.getMultiLineText(self, "Custom Outcomes",
-                "Enter outcome names (one per line):\n\nExample:\nFEV1\nSGRQ\nExacerbations\nAdverse events",
-                "FEV1\nSGRQ\nExacerbations\nAdverse events")
-            if not ok or not outcomes.strip():
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Custom Outcomes")
+            dlg.resize(400, 300)
+            dl = QVBoxLayout(dlg)
+            dl.addWidget(QLabel("Enter outcome names (one per line):"))
+            editor = QTextEdit()
+            editor.setPlainText("FEV1\nSGRQ\nExacerbations\nAdverse events")
+            dl.addWidget(editor)
+            bb = QHBoxLayout()
+            ok_btn = QPushButton("OK")
+            ok_btn.clicked.connect(dlg.accept)
+            cancel_btn = QPushButton("Cancel")
+            cancel_btn.clicked.connect(dlg.reject)
+            bb.addStretch()
+            bb.addWidget(ok_btn)
+            bb.addWidget(cancel_btn)
+            dl.addLayout(bb)
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            outcomes = editor.toPlainText()
+            if not outcomes.strip():
                 return
             outcome_list = [o.strip() for o in outcomes.strip().split('\n') if o.strip()]
             if not outcome_list:
@@ -904,8 +921,8 @@ class SetupTab(QWidget):
             self._custom_outcomes = outcome_list
             prompts = [
                 "First author last name and publication year. Format: 'Smith 2023'.",
-                "INTERVENTION group. Extract ONLY these outcomes (one per line): " + ', '.join(outcome_list) + ". Format: Outcome | N | value | Source p.X.",
-                "CONTROL group. Same order as intervention. Extract ONLY: " + ', '.join(outcome_list) + ". Format: Outcome | N | value | Source p.X.",
+                "INTERVENTION group(s). If multiple intervention arms, list ALL with their group labels. Extract each outcome (one per line): " + ', '.join(outcome_list) + ". Format: Outcome | Group label | Group N | value | Source p.X. For continuous data write mean±SD, for count data write events (percentage). Example:\nFEV1 | Drug A | N=60 | 2.45±0.32 | Source p.5\nFEV1 | Drug B | N=60 | 2.12±0.30 | Source p.5",
+                "CONTROL group. Same order as intervention. Name the specific control (e.g., placebo, usual care, another drug, sham procedure). Extract each outcome: " + ', '.join(outcome_list) + ". Format: Outcome | Control name | Group N | value | Source p.X.",
             ]
 
         self.prompt_list.setPlainText(

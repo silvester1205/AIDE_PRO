@@ -893,10 +893,27 @@ class SetupTab(QWidget):
 
         # Handle Custom Outcomes template
         if idx == 3 and prompts[1] is None:
-            outcomes, ok = QInputDialog.getMultiLineText(self, "Custom Outcomes",
-                "Enter outcome names (one per line):\n\nExample:\nFEV1\nSGRQ\nExacerbations\nAdverse events",
-                "FEV1\nSGRQ\nExacerbations\nAdverse events")
-            if not ok or not outcomes.strip():
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Custom Outcomes")
+            dlg.resize(400, 300)
+            dl = QVBoxLayout(dlg)
+            dl.addWidget(QLabel("Enter outcome names (one per line):"))
+            editor = QTextEdit()
+            editor.setPlainText("FEV1\nSGRQ\nExacerbations\nAdverse events")
+            dl.addWidget(editor)
+            bb = QHBoxLayout()
+            ok_btn = QPushButton("OK")
+            ok_btn.clicked.connect(dlg.accept)
+            cancel_btn = QPushButton("Cancel")
+            cancel_btn.clicked.connect(dlg.reject)
+            bb.addStretch()
+            bb.addWidget(ok_btn)
+            bb.addWidget(cancel_btn)
+            dl.addLayout(bb)
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            outcomes = editor.toPlainText()
+            if not outcomes.strip():
                 return
             outcome_list = [o.strip() for o in outcomes.strip().split('\n') if o.strip()]
             if not outcome_list:

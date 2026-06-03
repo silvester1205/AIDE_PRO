@@ -1,0 +1,82 @@
+========================================
+AIDE Pro v1 — 系统综述数据提取工具
+========================================
+
+一、下载与安装
+
+  无需安装，双击 AIDE Pro.exe 即可运行。
+  首次启动可能被 Windows Defender 拦截，
+  点击"更多信息"→"仍然运行"即可。
+
+二、使用流程
+
+  ⚙️ Setup 页面
+    1. 填写 API Key（不会保存在EXE中，存储在系统注册表）
+    2. URL Endpoint（填写模型访问地址）
+    3. 点 "Test Connection" 验证连接
+    4. 选择编码表模板，或上传自定义编码表（.csv/.xlsx）
+
+  🔍 Analyze 页面
+    1. 点 "Open PDF" 或 File → Open PDF 选择要分析的文献
+    2. 点 "Analyze" 开始提取（状态栏显示各阶段耗时）
+    3. 审核提取结果：
+       · "📍 Source" → PDF 中定位原文出处
+       · "✅ Record" → 确认并记录数据
+    4. Select按钮可选取PDF文本并复制
+    5. 顶端搜索框进行 PDF 文本检索
+    6. 切到 Setup → 选择下一篇文献 → 返回 Analyze 继续
+
+  📋 Export 页面
+    - 预览所有记录数据
+    - "Export Excel / CSV" → 导出原始编码表
+    - "Export Effect Size" → 展开格式（每组/每个结局一行）
+    - "Export ROB2" → 仅提取判断结果，附带 D1-D5 域说明
+    - "Export Baseline" → 转置表格输出（变量×组），含注册号、研究设计等
+    - "↩️ Restore Session" → 选中某行，恢复完整会话（PDF + 字段卡片）
+    - "🗑️ Delete Selected Row" → 删除某行数据
+
+  📜 History 页面
+    - 每次分析和记录修改后自动保存
+    - 多选（Ctrl/Shift + 点击） → "Import to Table" → 批量导入编码表
+    - 不同编码表的条目不允许合并
+    - "🗑️ Delete" → 删除历史记录
+
+三、支持模板
+
+  1. Study Info（7 fields）
+     - 作者+年份、试验注册号、研究设计、样本量、年龄、基线值、干预详情
+     - 支持多臂试验
+
+  2. Effect Size（3 fields）
+     - 作者+年份、干预组结局、对照组结局
+     - 格式: Outcome | Group label | Group N | value | Source p.X
+     - 支持多臂
+
+  3. Custom Outcomes（3 fields）
+     - 用户自定义结局名称
+     - 同上格式
+
+  4. ROB2（7 fields）
+     - 5个偏倚域 + 总体判断
+     - 输出: Low risk / Some concerns / High risk
+
+四、v1 功能列表
+
+  ✅ 多臂试验支持
+  ✅ Export Baseline（转置表格）
+  ✅ Export Effect Size（展开格式）
+  ✅ Export ROB2（仅判断 + D1-D5说明）
+  ✅ 结果卡片加大显示
+  ✅ 各阶段耗时显示
+  ✅ History 自动保存 + 批量导入 Export + 单条恢复会话
+  ✅ 导出编码自动校正（UTF-8 BOM）
+  ✅ 不同编码表不可合并
+
+五、API Key 安全
+
+  API Key 保存在 Windows 注册表（HKCU\Software\AIDE），
+  不打包进 EXE，不写入代码文件，更换电脑需重新填写。
+
+六、联系作者
+
+  小红书：94373279426

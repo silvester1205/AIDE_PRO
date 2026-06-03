@@ -6,6 +6,39 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
+
+      - name: Build AIDE Pro
+        run: pyinstaller --onefile --windowed --name "AIDE Pro" --add-data "utils;utils" aide.py
+
+      - name: Build AIDE Free
+        run: pyinstaller --onefile --windowed --name "AIDE Free" --add-data "utils;utils" aide_trial.py
+
+      - name: Upload Pro
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIDE-Win-Pro
+          path: dist/AIDE Pro.exe
+
+      - name: Upload Free
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIDE-Win-Free
+          path: dist/AIDE Free.exe
+
   build-mac:
     runs-on: macos-latest
     steps:
@@ -16,13 +49,22 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller requests certifi httpx
+        run: pip install PyQt6 pymupdf pandas openpyxl pillow openai pyinstaller
 
       - name: Build AIDE Pro
-        run: pyinstaller --onefile --windowed --name "AIDE_Pro" --add-data "utils:utils" --hidden-import certifi --hidden-import urllib3 --hidden-import httpx --hidden-import requests aide.py
+        run: pyinstaller --onefile --windowed --name "AIDE_Pro" --add-data "utils:utils" aide.py
 
-      - name: Upload
+      - name: Build AIDE Free
+        run: pyinstaller --onefile --windowed --name "AIDE_Free" --add-data "utils:utils" aide_trial.py
+
+      - name: Upload Pro
         uses: actions/upload-artifact@v4
         with:
           name: AIDE-Mac-Pro
-          path: "dist/AIDE_Pro"
+          path: dist/AIDE_Pro
+
+      - name: Upload Free
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIDE-Mac-Free
+          path: dist/AIDE_Free

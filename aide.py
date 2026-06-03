@@ -1264,6 +1264,7 @@ class AnalyzeTab(QWidget):
                 mw.prompts, mw.coding_form_df,
                 mw.current_row_idx, field_data, recorded)
             mw.history_tab.refresh()
+            mw.export_tab.refresh(mw.coding_form_df, recorded_count=sum(1 for r in recorded if r))
 
     def _reset(self):
         self._clear_cards()

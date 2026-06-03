@@ -1117,21 +1117,24 @@ class AnalyzeTab(QWidget):
         self.status.setStyleSheet("color:#28a745;")
 
         # Auto-save to history
-        if mw and mw.coding_form_df is not None and mw.current_row_idx is not None:
-            field_data = []
-            recorded = []
-            for card in self.field_cards:
-                field_data.append({
-                    'response': card.editor.toPlainText(),
-                    'source_quote': card.source_quote,
-                    'source_page': card.source_page,
-                })
-                recorded.append(card.is_recorded)
-            HistoryTab.save_entry(
-                getattr(self, 'pdf_path', '') or '',
-                mw.prompts, mw.coding_form_df,
-                mw.current_row_idx, field_data, recorded)
-            mw.history_tab.refresh()
+        try:
+            if mw and mw.coding_form_df is not None and mw.current_row_idx is not None:
+                field_data = []
+                recorded = []
+                for card in self.field_cards:
+                    field_data.append({
+                        'response': card.editor.toPlainText(),
+                        'source_quote': card.source_quote,
+                        'source_page': card.source_page,
+                    })
+                    recorded.append(card.is_recorded)
+                HistoryTab.save_entry(
+                    getattr(self, 'pdf_path', '') or '',
+                    mw.prompts, mw.coding_form_df,
+                    mw.current_row_idx, field_data, recorded)
+                mw.history_tab.refresh()
+        except Exception:
+            pass
 
     def _clear_cards(self):
         while self.card_layout.count() > 1:

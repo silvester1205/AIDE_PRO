@@ -1125,22 +1125,25 @@ class AnalyzeTab(QWidget):
 
 
         # Auto-save to history
-        if mw and mw.coding_form_df is not None and mw.current_row_idx is not None:
-            field_data = []
-            recorded = []
-            for card in self.field_cards:
-                field_data.append({
-                    'response': card.editor.toPlainText(),
-                    'source_quote': card.source_quote,
-                    'source_page': card.source_page,
-                })
-                recorded.append(card.is_recorded)
-            HistoryTab.save_entry(
-                getattr(self, 'pdf_path', '') or '',
-                mw.prompts, mw.coding_form_df,
-                mw.current_row_idx, field_data, recorded)
-            mw.history_tab.refresh()
-            mw.export_tab.refresh(mw.coding_form_df)
+        try:
+            if mw and mw.coding_form_df is not None and mw.current_row_idx is not None:
+                field_data = []
+                recorded = []
+                for card in self.field_cards:
+                    field_data.append({
+                        'response': card.editor.toPlainText(),
+                        'source_quote': card.source_quote,
+                        'source_page': card.source_page,
+                    })
+                    recorded.append(card.is_recorded)
+                HistoryTab.save_entry(
+                    getattr(self, 'pdf_path', '') or '',
+                    mw.prompts, mw.coding_form_df,
+                    mw.current_row_idx, field_data, recorded)
+                mw.history_tab.refresh()
+                mw.export_tab.refresh(mw.coding_form_df)
+        except Exception:
+            pass
 
         # Increment daily usage count
         s = QSettings("AIDE", "Usage")
@@ -1150,6 +1153,7 @@ class AnalyzeTab(QWidget):
             self.status.setText(f"📋 今日已分析 {used+1}/3 篇 ✅ (LLM {timing['llm']}s)")
         else:
             self.status.setText(f"📋 今日已分析 {used+1}/3 篇 ✅")
+        self.analyze_btn.setEnabled(True)
 
     def _clear_cards(self):
         while self.card_layout.count() > 1:

@@ -27,17 +27,27 @@ jobs:
       - name: Build AIDE Free
         run: pyinstaller --onefile --windowed --name "AIDE Free" --add-data "utils;utils" --hidden-import certifi --hidden-import urllib3 --hidden-import httpx --hidden-import requests --hidden-import openai aide_trial.py
 
-      - name: Upload Pro
-        uses: actions/upload-artifact@v4
+      - name: Organize and Upload Pro
+        run: |
+          mkdir dist\AIDE_Pro
+          copy "dist\AIDE Pro.exe" dist\AIDE_Pro\
+          copy AIDE_Pro_v1_使用说明.txt dist\AIDE_Pro\
+        shell: cmd
+      - uses: actions/upload-artifact@v4
         with:
           name: AIDE-Win-Pro
-          path: dist/AIDE Pro.exe
+          path: dist/AIDE_Pro
 
-      - name: Upload Free
-        uses: actions/upload-artifact@v4
+      - name: Organize and Upload Free
+        run: |
+          mkdir dist\AIDE_Free
+          copy "dist\AIDE Free.exe" dist\AIDE_Free\
+          copy AIDE_Pro_v1_使用说明.txt dist\AIDE_Free\
+        shell: cmd
+      - uses: actions/upload-artifact@v4
         with:
           name: AIDE-Win-Free
-          path: dist/AIDE Free.exe
+          path: dist/AIDE_Free
 
   build-mac:
     runs-on: macos-latest
@@ -57,14 +67,22 @@ jobs:
       - name: Build AIDE Free
         run: pyinstaller --onefile --windowed --name "AIDE_Free" --add-data "utils:utils" --hidden-import certifi --hidden-import urllib3 --hidden-import httpx --hidden-import requests --hidden-import openai aide_trial.py
 
-      - name: Upload Pro
-        uses: actions/upload-artifact@v4
+      - name: Organize and Upload Pro
+        run: |
+          mkdir -p dist_output/AIDE_Pro
+          cp dist/AIDE_Pro dist_output/AIDE_Pro/
+          cp AIDE_Pro_v1_使用说明.txt dist_output/AIDE_Pro/
+      - uses: actions/upload-artifact@v4
         with:
           name: AIDE-Mac-Pro
-          path: dist/AIDE_Pro
+          path: dist_output/AIDE_Pro
 
-      - name: Upload Free
-        uses: actions/upload-artifact@v4
+      - name: Organize and Upload Free
+        run: |
+          mkdir -p dist_free/AIDE_Free
+          cp dist/AIDE_Free dist_free/AIDE_Free/
+          cp AIDE_Pro_v1_使用说明.txt dist_free/AIDE_Free/
+      - uses: actions/upload-artifact@v4
         with:
           name: AIDE-Mac-Free
-          path: dist/AIDE_Free
+          path: dist_free/AIDE_Free

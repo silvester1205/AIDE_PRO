@@ -1293,7 +1293,7 @@ class HistoryTab(QWidget):
         title.setStyleSheet("font-size:18px;color:#333;padding:6px 0;")
         layout.addWidget(title)
 
-        hint = QLabel("Restore a previous session — PDF, extracted data, and recorded fields will be reloaded.")
+        hint = QLabel("Select entries and click 'Import to Table' to add their data to the export table.\nThen go to Export tab → select a row → click 'Restore Session' to reload PDF and field cards.")
         hint.setWordWrap(True)
         hint.setStyleSheet("color:#888;font-size:12px;padding:0 0 8px 0;")
         layout.addWidget(hint)
@@ -1304,7 +1304,7 @@ class HistoryTab(QWidget):
         self.table.setHorizontalHeaderLabels(["Study", "Date", "Fields", "Recorded", "PDF"])
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.verticalHeader().hide()
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -1314,13 +1314,13 @@ class HistoryTab(QWidget):
 
         # Buttons
         bl = QHBoxLayout()
-        self.restore_btn = QPushButton("↩️ Restore Selected")
-        self.restore_btn.setStyleSheet(
+        self.import_btn = QPushButton("📥 Import to Table")
+        self.import_btn.setStyleSheet(
             "QPushButton{border-radius:6px;padding:8px 20px;font-size:13px;font-weight:600;"
             "background:#3498db;color:#fff;border:none;}"
             "QPushButton:hover{background:#2980b9;}")
-        self.restore_btn.clicked.connect(self._restore)
-        bl.addWidget(self.restore_btn)
+        self.import_btn.clicked.connect(self._import_to_table)
+        bl.addWidget(self.import_btn)
 
         self.delete_btn = QPushButton("🗑️ Delete")
         self.delete_btn.setStyleSheet(
@@ -1425,113 +1425,71 @@ class HistoryTab(QWidget):
             self.table.setItem(i, 4, QTableWidgetItem(e.get('pdf_name', '')))
         self.status.setText(f"{len(entries)} session(s) saved")
 
-    def _restore(self):
-        """Restore selected history entry."""
-        row = self.table.currentRow()
-        if row < 0:
-            QMessageBox.warning(self, "No Selection", "Select a session to restore first.")
+    def _import_to_table(self):
+        """Import selected history entries into the export table (multi-select)."""
+        selected = self.table.selectedIndexes()
+        if not selected:
+            QMessageBox.warning(self, "No Selection", "Select session(s) to import first.")
             return
         entries = self._load_all()
-        # Table shows reversed order
-        idx = len(entries) - 1 - row
-        if idx < 0 or idx >= len(entries):
+        rows = set()
+        for idx in selected:
+            rows.add(idx.row())
+        entry_indices = [len(entries) - 1 - r for r in sorted(rows)]
+        selected_entries = [entries[i] for i in entry_indices if 0 <= i < len(entries)]
+        if not selected_entries:
             return
-        e = entries[idx]
         mw = self._main_window()
         if not mw:
             return
-
-        # Confirm
-        study = e.get('study', 'Unknown')
-        ans = QMessageBox.question(
-            self, "Restore Session",
-            f"Restore analysis for '{study}'?\n"
-            f"PDF: {e.get('pdf_name', '')}\n"
-            f"Date: {e.get('timestamp', '')}\n\n"
-            "Current unsaved data will be lost.")
-        if ans != QMessageBox.StandardButton.Yes:
+        import pandas as pd
+        ref_prompts = selected_entries[0].get('prompts', [])
+        if not ref_prompts:
+            QMessageBox.warning(self, "Error", "Selected entry has no prompts.")
             return
-
-        # 1. Restore coding form
-        df_json = e.get('coding_form')
-        if df_json:
-            import pandas as pd
-            try:
-                mw.coding_form_df = pd.read_json(df_json, orient='split')
-            except Exception:
-                mw.coding_form_df = pd.DataFrame([e.get('prompts', [])])
+        for e in selected_entries:
+            if e.get('prompts', []) != ref_prompts:
+                QMessageBox.warning(self, "Template Mismatch",
+                    "Cannot merge with a different coding form.")
+                return
+        # Coding form uses integer columns (0,1,2...) with row 0 = prompts
+        n = len(ref_prompts)
+        if mw.coding_form_df is not None and len(mw.coding_form_df) > 0:
+            # Compare row 0 (prompts) to check template match
+            existing = [str(mw.coding_form_df.iloc[0, c]) if pd.notna(mw.coding_form_df.iloc[0, c]) else '' for c in range(min(n, len(mw.coding_form_df.columns)))]
+            if existing != ref_prompts:
+                ans = QMessageBox.question(self, "Different Template",
+                    "Replace current table with the new template? Current data will be lost.")
+                if ans != QMessageBox.StandardButton.Yes:
+                    return
+                mw.coding_form_df = pd.DataFrame([ref_prompts])
+                mw.current_row_idx = None
+                if not hasattr(mw, '_history_id_map'):
+                    mw._history_id_map = {}
         else:
-            mw.coding_form_df = pd.DataFrame([e.get('prompts', [])])
-        mw.prompts = e.get('prompts', [])
-        mw.current_row_idx = e.get('row_idx')
+            mw.coding_form_df = pd.DataFrame([ref_prompts])
+            mw._history_id_map = {}
+        mw.prompts = ref_prompts
+        if not hasattr(mw, '_history_id_map'):
+            mw._history_id_map = {}
+        imported = 0
+        for e in selected_entries:
+            row_data = {}
+            for i in range(n):
+                fd = e.get('field_data', [])
+                val = ''
+                if i < len(fd) and isinstance(fd[i], dict):
+                    val = fd[i].get('response', '')
+                row_data[i] = val
+            nr = pd.DataFrame([row_data])
+            mw.coding_form_df = pd.concat([mw.coding_form_df, nr], ignore_index=True)
+            # Store history_id in separate map
+            mw._history_id_map[len(mw.coding_form_df) - 1] = e.get('id', '')
+            imported += 1
+        mw.current_row_idx = len(mw.coding_form_df) - 1
+        self.status.setText(f"Imported {imported} study/studies to export table")
+        mw.export_tab.refresh(mw.coding_form_df)
 
-        # 2. Load PDF
-        pdf_path = e.get('pdf_path', '')
-        pdf_loaded = False
-        if pdf_path and os.path.exists(pdf_path):
-            try:
-                with open(pdf_path, 'rb') as f:
-                    pdf_bytes = f.read()
-                mw.analyze_tab._reset()
-                mw.analyze_tab.pdf_viewer.load_pdf(pdf_bytes)
-                mw.analyze_tab.analyze_btn.setEnabled(True)
-                pdf_loaded = True
-            except Exception:
-                pdf_loaded = False
-
-        if not pdf_loaded and pdf_path:
-            ans = QMessageBox.question(
-                self, "PDF Not Found",
-                f"Cannot find:\n{pdf_path}\n\nLocate the PDF file?")
-            if ans == QMessageBox.StandardButton.Yes:
-                new_path, _ = QFileDialog.getOpenFileName(
-                    self, "Locate PDF", "", "PDF Files (*.pdf)")
-                if new_path:
-                    pdf_path = new_path
-                    with open(pdf_path, 'rb') as f:
-                        pdf_bytes = f.read()
-                    mw.analyze_tab._reset()
-                    mw.analyze_tab.pdf_viewer.load_pdf(pdf_bytes)
-                    mw.analyze_tab.analyze_btn.setEnabled(True)
-                    pdf_loaded = True
-
-        # 3. Rebuild field cards
-        recorded = e.get('recorded', [])
-        field_data = e.get('field_data', [])
-        mw.analyze_tab._clear_cards()
-        for i, prompt in enumerate(mw.prompts):
-            card = FieldCard(i, prompt)
-            if i < len(field_data):
-                fd = field_data[i]
-                if isinstance(fd, dict):
-                    card.set_data(
-                        fd.get('response', ''),
-                        fd.get('source_quote', ''),
-                        fd.get('source_page', None))
-                else:
-                    card.set_data(str(fd) if fd else '', '', None)
-            if i < len(recorded) and recorded[i]:
-                card.toggle_recorded()
-            card.source_clicked.connect(mw.analyze_tab._on_src)
-            card.record_clicked.connect(mw.analyze_tab._on_rec)
-            mw.analyze_tab.card_layout.insertWidget(
-                mw.analyze_tab.card_layout.count() - 1, card)
-            mw.analyze_tab.field_cards.append(card)
-
-        done = sum(1 for r in recorded if r)
-        total = len(mw.prompts)
-        mw.analyze_tab.recorded_lbl.setText(f"📋 {done}/{total} fields recorded")
-        if done == total:
-            mw.analyze_tab.recorded_lbl.setText(f"✅ All {total} fields recorded")
-            mw.analyze_tab.recorded_lbl.setStyleSheet("color:#28a745;font-weight:bold;font-size:12px;")
-        else:
-            mw.analyze_tab.recorded_lbl.setStyleSheet("color:#888;font-size:12px;")
-
-        # 4. Switch to Analyze tab
-        mw.tabs.setCurrentIndex(1)
-
-        self.status.setText(f"✅ Restored '{study}' — {total} fields, {done} recorded")
-        QMessageBox.information(self, "Done", f"Session '{study}' restored.\nSwitch to Analyze tab to review.")
 
     def _delete(self):
         """Delete selected history entry."""
@@ -1620,6 +1578,15 @@ class ExportTab(QWidget):
             "border:1px solid #ddd;font-weight:bold;}")
         layout.addWidget(self.table, 1)
 
+        # Restore session button
+        restore_btn = QPushButton("↩️ Restore Session")
+        restore_btn.setStyleSheet(
+            "QPushButton{background:#3498db;color:#fff;border:none;"
+            "border-radius:6px;padding:8px 16px;font-size:12px;font-weight:600;}"
+            "QPushButton:hover{background:#2980b9;}")
+        restore_btn.clicked.connect(self._restore_session)
+        layout.addWidget(restore_btn)
+
         # Delete row button
         del_row = QHBoxLayout()
         del_row.addStretch()
@@ -1641,7 +1608,10 @@ class ExportTab(QWidget):
             return
 
         rows = len(df)
-        cols = len(df.columns)
+        # Exclude hidden _history_id column from display
+        display_cols = [c for c in df.columns if c != '_history_id']
+        show_df = df[display_cols]
+        show_cols = len(show_df.columns)
 
         # Stats
         data_rows = rows - 1  # first row is prompts/header
@@ -1649,30 +1619,30 @@ class ExportTab(QWidget):
             self.stats.setText(
                 f"📊 <b>{data_rows}</b> studies extracted, "
                 f"<b>{recorded_count}</b> fields recorded in current study | "
-                f"Total: <b>{rows}</b> rows × <b>{cols}</b> columns"
+                f"Total: <b>{rows}</b> rows × <b>{show_cols}</b> columns"
             )
         else:
             self.stats.setText(
-                f"📊 <b>{data_rows}</b> studies | <b>{rows}</b> rows × <b>{cols}</b> columns"
+                f"📊 <b>{data_rows}</b> studies | <b>{rows}</b> rows × <b>{show_cols}</b> columns"
             )
         self.stats.setStyleSheet("color:#333;font-size:12px;padding:8px 0;")
 
         # Populate table
         self.table.setRowCount(rows)
-        self.table.setColumnCount(cols)
+        self.table.setColumnCount(show_cols)
         headers = []
-        for c in range(cols):
+        for c in range(show_cols):
             try:
-                h = str(df.columns[c]) if c < len(df.columns) else f"Col {c}"
+                h = str(show_df.columns[c])
             except Exception:
                 h = f"Col {c}"
             headers.append(h)
         self.table.setHorizontalHeaderLabels(headers)
 
         for r in range(rows):
-            for c in range(cols):
+            for c in range(show_cols):
                 try:
-                    val = str(df.iat[r, c]) if pd.notna(df.iat[r, c]) else ""
+                    val = str(show_df.iat[r, c]) if pd.notna(show_df.iat[r, c]) else ""
                 except Exception:
                     val = ""
                 item = QTableWidgetItem(val)
@@ -2064,6 +2034,86 @@ class ExportTab(QWidget):
             QMessageBox.information(self, "Done", f"Saved baseline table to {path}")
         except Exception as e:
             QMessageBox.warning(self, "Error", str(e))
+
+    def _restore_session(self):
+        """Restore full session from selected export table row."""
+        mw = self._mw()
+        if mw is None or mw.coding_form_df is None:
+            QMessageBox.warning(self, "No Data", "No data in export table.")
+            return
+        sel = self.table.currentRow()
+        if sel < 0:
+            QMessageBox.warning(self, "No Selection", "Select a row to restore.")
+            return
+        hist_id = None
+        if hasattr(mw, '_history_id_map'):
+            hist_id = mw._history_id_map.get(sel)
+        if not hist_id:
+            QMessageBox.information(self, "Cannot Restore",
+                "This row has no linked history entry.")
+            return
+        import json
+        hist_path = HistoryTab.HISTORY_FILE
+        try:
+            with open(hist_path, 'r', encoding='utf-8') as f:
+                entries = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            entries = []
+        entry = None
+        for e in entries:
+            if e.get('id') == hist_id:
+                entry = e
+                break
+        if not entry:
+            QMessageBox.warning(self, "Not Found", "History entry not found.")
+            return
+        pdf_path = entry.get('pdf_path', '')
+        pdf_loaded = False
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                with open(pdf_path, 'rb') as f:
+                    pdf_bytes = f.read()
+                mw.analyze_tab._reset()
+                mw.analyze_tab.pdf_path = pdf_path
+                mw.analyze_tab.pdf_viewer.load_pdf(pdf_bytes)
+                mw.analyze_tab.analyze_btn.setEnabled(True)
+                pdf_loaded = True
+            except Exception:
+                pdf_loaded = False
+        if not pdf_loaded and pdf_path:
+            ans = QMessageBox.question(self, "PDF Not Found", "Locate the PDF file?")
+            if ans == QMessageBox.StandardButton.Yes:
+                new_path, _ = QFileDialog.getOpenFileName(self, "Locate PDF", "", "PDF Files (*.pdf)")
+                if new_path:
+                    with open(new_path, 'rb') as f:
+                        pdf_bytes = f.read()
+                    mw.analyze_tab._reset()
+                    mw.analyze_tab.pdf_path = new_path
+                    mw.analyze_tab.pdf_viewer.load_pdf(pdf_bytes)
+                    mw.analyze_tab.analyze_btn.setEnabled(True)
+        recorded = entry.get('recorded', [])
+        field_data = entry.get('field_data', [])
+        prompts = entry.get('prompts', [])
+        mw.prompts = prompts
+        mw.analyze_tab._clear_cards()
+        for i, prompt in enumerate(prompts):
+            card = FieldCard(i, prompt)
+            if i < len(field_data) and isinstance(field_data[i], dict):
+                fd = field_data[i]
+                card.set_data(fd.get('response', ''), fd.get('source_quote', ''), fd.get('source_page', None))
+            if i < len(recorded) and recorded[i]:
+                card.toggle_recorded()
+            card.source_clicked.connect(mw.analyze_tab._on_src)
+            card.record_clicked.connect(mw.analyze_tab._on_rec)
+            mw.analyze_tab.card_layout.insertWidget(mw.analyze_tab.card_layout.count() - 1, card)
+            mw.analyze_tab.field_cards.append(card)
+        mw.current_row_idx = None
+        done = sum(1 for r in recorded if r)
+        total = len(prompts)
+        mw.analyze_tab.recorded_lbl.setText(f"Recorded {done}/{total}")
+        mw.tabs.setCurrentIndex(1)
+        QMessageBox.information(self, "Done", f"Session restored.")
+
 
     def _do_export(self, fmt: str):
         mw = self._mw()

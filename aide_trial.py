@@ -1352,7 +1352,7 @@ class HistoryTab(QWidget):
 
         # Buttons
         bl = QHBoxLayout()
-        self.import_btn = QPushButton("↩️ Restore Selected")
+        self.import_btn = QPushButton("📥 Import to Table")
         self.import_btn.setStyleSheet(
             "QPushButton{border-radius:6px;padding:8px 20px;font-size:13px;font-weight:600;"
             "background:#3498db;color:#fff;border:none;}"
@@ -1721,6 +1721,15 @@ class ExportTab(QWidget):
             "QHeaderView::section{background:#f5f5f5;padding:6px 10px;"
             "border:1px solid #ddd;font-weight:bold;}")
         layout.addWidget(self.table, 1)
+
+        # Restore session button
+        restore_btn = QPushButton("\U0001f519 Restore Session")
+        restore_btn.setStyleSheet(
+            "QPushButton{background:#3498db;color:#fff;border:none;"
+            "border-radius:6px;padding:8px 16px;font-size:12px;font-weight:600;}"
+            "QPushButton:hover{background:#2980b9;}")
+        restore_btn.clicked.connect(self._restore_session)
+        layout.addWidget(restore_btn)
 
         # Delete row button
         del_row = QHBoxLayout()

@@ -2162,10 +2162,7 @@ class ExportTab(QWidget):
             return
         hist_id = None
         if hasattr(mw, '_history_id_map'):
-            if sel < len(mw.coding_form_df):
-                val = mw.coding_form_df.iloc[sel].get('_history_id')
-                if pd.notna(val):
-                    hist_id = str(val)
+            hist_id = mw._history_id_map.get(sel)
         if not hist_id:
             QMessageBox.information(self, "Cannot Restore",
                 "This row has no linked history entry.")

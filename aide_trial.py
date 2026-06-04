@@ -1753,8 +1753,8 @@ class ExportTab(QWidget):
 
         rows = len(df)
         display_cols = [c for c in df.columns if c != '_history_id']
-        show_df = df[display_cols]
-        show_cols = len(show_df.columns)
+        df = df[display_cols]
+        cols = len(df.columns)
 
         # Stats
         data_rows = rows - 1  # first row is prompts/header
@@ -1772,20 +1772,20 @@ class ExportTab(QWidget):
 
         # Populate table
         self.table.setRowCount(rows)
-        self.table.setColumnCount(show_cols)
+        self.table.setColumnCount(cols)
         headers = []
         for c in range(cols):
             try:
-                h = str(show_df.columns[c])
+                h = str(df.columns[c])
             except Exception:
                 h = f"Col {c}"
             headers.append(h)
         self.table.setHorizontalHeaderLabels(headers)
 
         for r in range(rows):
-            for c in range(show_cols):
+            for c in range(cols):
                 try:
-                    val = str(show_df.iat[r, c]) if pd.notna(show_df.iat[r, c]) else ""
+                    val = str(df.iat[r, c]) if pd.notna(df.iat[r, c]) else ""
                 except Exception:
                     val = ""
                 item = QTableWidgetItem(val)

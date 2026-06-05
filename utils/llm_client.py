@@ -3,6 +3,7 @@ LLM Client for interacting with OpenAI-compatible APIs.
 """
 
 import json
+import re
 from typing import Dict, List, Tuple, Any, Optional
 
 
@@ -209,65 +210,82 @@ def test_connection(config: Dict[str, str]) -> Tuple[bool, str]:
 
 def analyze_with_llm(
     config: Dict[str, str],
-    prompts: List[str],
+    template_fields: List[Dict[str, str]],
     pdf_text: str
 ) -> Tuple[bool, Any]:
     """
-    Send prompts and PDF text to LLM for analysis.
+    Send template fields and PDF text to LLM for analysis.
 
     Args:
         config: Dictionary with 'endpoint', 'api_key', 'model'
-        prompts: List of prompts from the coding form
+        template_fields: List of dicts with 'name', 'prompt', 'type', 'level'
         pdf_text: Extracted text from PDF (with page markers)
 
     Returns:
         Tuple of (success: bool, result: dict or error message)
     """
-    import re
     import time
     t_start = time.time()
 
     try:
         from openai import OpenAI
 
-        # Timeout: 10s connect, 120s read
         client = OpenAI(
             api_key=config['api_key'],
             base_url=config['endpoint'],
             timeout=120.0
         )
 
-        system_prompt = build_system_prompt(prompts)
+        system_prompt = build_system_prompt(template_fields)
 
-        # Truncate PDF to prevent context overflow (DeepSeek: 128K, safe limit ~60K chars)
+        # Truncate PDF to prevent context overflow
         max_chars = 60000
         if len(pdf_text) > max_chars:
             pdf_text = pdf_text[:max_chars] + "\n\n[PDF truncated due to length]"
 
-        prompt_lines = []
-        for i, p in enumerate(prompts, 1):
-            prompt_lines.append(f"{i}. {p}")
-        prompt_str = "\n".join(prompt_lines)
+        # Build fields listing
+        field_lines = []
+        for i, f in enumerate(template_fields, 1):
+            level_tag = f.get('level', 'study')
+            field_lines.append(f"{i}. [{level_tag}] {f.get('prompt', f.get('name', ''))}")
+        field_str = "\n".join(field_lines)
 
-        # Build format example from first 2 prompts (like web version)
-        ex_count = min(2, len(prompts))
+        # Build prompt with arm/study distinction
+        study_fields = [f for f in template_fields if f.get('level', 'study') == 'study']
+        arm_fields = [f for f in template_fields if f.get('level') == 'arm']
+
+        instructions = []
+        if study_fields:
+            instructions.append(f"Study-level fields ({len(study_fields)} items): return a SINGLE value for each.")
+        if arm_fields:
+            instructions.append(f"Arm-level fields ({len(arm_fields)} items): return an ARRAY of values, one per study arm. "
+                                "All arm-level arrays MUST have the SAME LENGTH (one entry per arm).")
+
+        # Build example from first study field and first arm field
         ex_items = []
-        for j in range(ex_count):
-            p_esc = prompts[j].replace('"', "'")
-            ex_items.append(f'  {{"prompt": "{p_esc}", "response": "<answer>", "source": "<exact text from document>", "page": "<page number>"}}')
+        for f in template_fields[:2]:
+            name_esc = f.get('name', f.get('prompt', '')).replace('"', "'")
+            if f.get('level') == 'arm':
+                ex_items.append(f'  {{"field": "{name_esc}", "response": ["value1", "value2"], "source": "<exact text from document>", "page": "<page number>", "level": "arm"}}')
+            else:
+                ex_items.append(f'  {{"field": "{name_esc}", "response": "<answer>", "source": "<exact text from document>", "page": "<page number>", "level": "study"}}')
         example_json = '{\n"responses": [\n' + ',\n'.join(ex_items) + '\n]\n}'
+
+        instruction_text = "\n".join(instructions)
 
         user_prompt = f"""Document Text:
 ---
 {pdf_text}
 ---
 
-Prompts to answer:
-{prompt_str}
+Fields to extract:
+{field_str}
 
-Extract information for each prompt and return ONLY valid JSON.
+{instruction_text}
 
-There are {len(prompts)} prompts — your responses array MUST have exactly {len(prompts)} items, one per prompt.
+Your responses array MUST have exactly {len(template_fields)} items — one per field, in order.
+For arm-level fields, the "response" field MUST be an array of values (one per study arm); for study-level fields, a single value.
+All arm-level arrays must have the same length.
 
 Use this structure (copy and replace with your answers):
 {example_json}
@@ -281,7 +299,6 @@ CRITICAL: Return ONLY the JSON object. No markdown, no code blocks, no extra tex
         last_err = ""
         finish_reason = ""
 
-        # Single attempt, no response_format (works across all models)
         try:
             response = client.chat.completions.create(
                 model=config['model'],
@@ -313,11 +330,9 @@ CRITICAL: Return ONLY the JSON object. No markdown, no code blocks, no extra tex
                 f"PDF length: {len(pdf_text)} chars"
             )
 
-        # Warn if output was truncated
         if finish_reason == "length":
             content += "\n\n[WARNING: Response may be truncated — max_tokens limit reached]"
 
-        # Parse JSON
         result = _parse_json(content)
         if result is None:
             return False, (
@@ -325,7 +340,7 @@ CRITICAL: Return ONLY the JSON object. No markdown, no code blocks, no extra tex
                 f"Raw (first 500 chars):\n{content[:500]}"
             )
 
-        formatted = format_result(prompts, result)
+        formatted = format_result(template_fields, result)
         t_done = time.time()
         formatted['_timing'] = {
             'build': round(t_sent - t_start, 1),
@@ -398,37 +413,209 @@ def _parse_json(content: str):
     return None
 
 
-def build_system_prompt(prompts: List[str]) -> str:
-    """Build system prompt for data extraction from systematic review documents."""
+def build_system_prompt(template_fields_or_prompts) -> str:
+    """Build system prompt for data extraction from systematic review documents.
+
+    Accepts either a list of template field dicts (new format) or a list of prompt strings (backward compat).
+    """
     return """You are a data extraction assistant for systematic reviews and meta-analysis.
 
 For each field you MUST provide:
-1. "response": The extracted answer — include ALL relevant detail (risk judgment, numerical values, text findings).
-2. "source": The EXACT original text snippet from the document that supports your answer — quote the relevant sentence, paragraph, or table row.
+1. "response": The extracted answer.
+   - For study-level fields: a single value.
+   - For arm-level fields: an ARRAY of values, one per study arm.
+2. "source": The EXACT original text snippet from the document that supports your answer.
 3. "page": The specific page number where this information was found.
+4. "level": Either "study" or "arm" matching the field definition.
 
 Return ONLY valid JSON using this structure:
-{"responses": [{"prompt": "...", "response": "...", "source": "...", "page": "..."}]}
+{"responses": [{"field": "...", "response": "...", "source": "...", "page": "...", "level": "..."}]}
 
 No markdown, no code blocks, no extra text outside the JSON."""
 
 
-def format_result(prompts: List[str], raw_result: Dict) -> Dict[str, Dict[str, str]]:
+def format_result(template_fields_or_prompts, raw_result: Dict) -> Dict[str, Dict]:
     """
     Format the LLM result into a standardized structure.
 
-    Maps from array format (like web version) to field_N dict for downstream compat.
-
     Args:
-        prompts: Original list of prompts
+        template_fields_or_prompts: Either list of template field dicts (new) or list of prompt strings (old)
         raw_result: Raw JSON result from LLM
 
     Returns:
-        Formatted dictionary with keys: prompt, response, source_quote, source_page
+        Formatted dictionary with field_N keys
     """
     formatted = {}
 
+    # Detect if old format (list of strings) or new format (list of dicts)
+    if template_fields_or_prompts and isinstance(template_fields_or_prompts[0], str):
+        # Old format: list of prompt strings
+        prompts = template_fields_or_prompts
+        return _format_result_old(prompts, raw_result)
+
+    # New format: list of template field dicts
+    fields = template_fields_or_prompts
+
     # Backward compat: handle old field_N format
+    if isinstance(raw_result, dict) and not raw_result.get('responses'):
+        if any(k.startswith('field_') for k in raw_result):
+            for i, f in enumerate(fields):
+                field_key = f"field_{i+1}"
+                field_data = raw_result.get(field_key, {})
+                if isinstance(field_data, dict):
+                    sp = field_data.get('source_page') or field_data.get('page')
+                    if sp is not None:
+                        try:
+                            sp = int(float(sp)) if not isinstance(sp, (int, float)) else int(sp)
+                        except (ValueError, TypeError):
+                            sp = None
+                    formatted[field_key] = {
+                        'prompt': f.get('prompt', f.get('name', '')),
+                        'name': f.get('name', ''),
+                        'type': f.get('type', 'text'),
+                        'level': f.get('level', 'study'),
+                        'response': field_data.get('response', ''),
+                        'source_quote': field_data.get('source_quote', '') or field_data.get('source', ''),
+                        'source_page': sp,
+                        'source': field_data.get('source', '')
+                    }
+            return formatted
+
+    # Normalize: list → {"responses": list}
+    if isinstance(raw_result, list):
+        raw_result = {"responses": raw_result}
+
+    responses = raw_result.get('responses', []) if isinstance(raw_result, dict) else []
+    if not isinstance(responses, list):
+        responses = []
+
+    for i, f in enumerate(fields):
+        field_key = f"field_{i+1}"
+        if i < len(responses) and isinstance(responses[i], dict):
+            item = responses[i]
+            sp = item.get('page') or item.get('source_page')
+            if sp is not None:
+                try:
+                    sp = int(float(str(sp).strip()))
+                except (ValueError, TypeError):
+                    sp = None
+            formatted[field_key] = {
+                'prompt': f.get('prompt', f.get('name', '')),
+                'name': f.get('name', ''),
+                'type': f.get('type', 'text'),
+                'level': f.get('level', 'study'),
+                'response': item.get('response', ''),
+                'source_quote': item.get('source', '') or item.get('source_quote', ''),
+                'source_page': sp,
+                'source': item.get('source', '')
+            }
+        else:
+            formatted[field_key] = {
+                'prompt': f.get('prompt', f.get('name', '')),
+                'name': f.get('name', ''),
+                'type': f.get('type', 'text'),
+                'level': f.get('level', 'study'),
+                'response': 'No response',
+                'source_quote': '',
+                'source_page': None,
+                'source': ''
+            }
+
+    return formatted
+
+
+def generate_template(config: Dict[str, str], topic: str, prompt_count: int = 14) -> Tuple[bool, Any]:
+    """
+    Use LLM to generate a template of extraction fields from a research topic.
+
+    Args:
+        config: Dictionary with 'endpoint', 'api_key', 'model'
+        topic: Research topic or abstract text
+        prompt_count: Approximate number of fields to generate
+
+    Returns:
+        Tuple of (success, result) where result is a list of field dicts or error message
+    """
+    import time
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(
+            api_key=config['api_key'],
+            base_url=config['endpoint'],
+            timeout=60.0
+        )
+
+        system_msg = "You are an expert in systematic review methodology. Generate extraction templates for data extraction."
+
+        user_msg = f"""Research topic / abstract:
+---
+{topic}
+---
+
+Based on this topic, generate a template with {prompt_count} extraction fields.
+
+The template must cover these 4 categories as appropriate:
+1. **基本信息** (study info: author+year, registration, design, sample size)
+2. **基线信息** (baseline characteristics: age, sex, disease-specific measures)
+3. **结局指标/效应量** (outcomes / effect size: primary and secondary outcomes)
+4. **质量评估** (risk of bias: ROB2 for RCTs, NOS for cohort, QUADAS-2 for diagnostic)
+
+For each field, decide whether it is:
+- "study" level: ONE value per study (e.g., author+year, sample size, ROB2 domain)
+- "arm" level: ONE value per study ARM (e.g., group label, group N, outcome per group)
+
+Return ONLY valid JSON in this format:
+{{"fields": [
+  {{"name": "Field short name", "prompt": "Detailed extraction prompt with format instructions", "type": "text", "level": "study"}},
+  ...
+]}}
+
+Field types: "text", "integer", "float", "boolean", "categorical"
+
+CRITICAL: Return ONLY the JSON. No markdown, no code blocks, no extra text.
+Include {prompt_count} fields. Make prompts detailed so the LLM knows exactly what to extract.
+For categorical fields, mention the valid categories in the prompt.
+"""
+
+        response = client.chat.completions.create(
+            model=config['model'],
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            temperature=0.1,
+            max_tokens=8192,
+            timeout=60,
+        )
+
+        content = response.choices[0].message.content or ""
+        if not content:
+            return False, "Empty response"
+
+        # Strip code fences
+        cleaned = re.sub(r'^```(?:json)?\s*', '', content)
+        cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+        cleaned = cleaned.strip()
+
+        result = json.loads(cleaned)
+        fields = result.get('fields', []) if isinstance(result, dict) else result
+
+        if not fields or not isinstance(fields, list):
+            return False, "No fields generated"
+
+        return True, fields
+
+    except json.JSONDecodeError as e:
+        return False, f"JSON parse error: {e}\n\nRaw:\n{content[:500] if 'content' in dir() else 'N/A'}"
+    except Exception as e:
+        return False, f"API error: {str(e)}"
+
+
+def _format_result_old(prompts: list, raw_result: Dict) -> Dict[str, Dict]:
+    """Old format result formatter for backward compatibility."""
+    formatted = {}
+
     if isinstance(raw_result, dict) and not raw_result.get('responses'):
         if any(k.startswith('field_') for k in raw_result):
             for i, prompt in enumerate(prompts):
@@ -443,6 +630,9 @@ def format_result(prompts: List[str], raw_result: Dict) -> Dict[str, Dict[str, s
                             sp = None
                     formatted[field_key] = {
                         'prompt': prompt,
+                        'name': prompt,
+                        'type': 'text',
+                        'level': 'study',
                         'response': field_data.get('response', ''),
                         'source_quote': field_data.get('source_quote', '') or field_data.get('source', ''),
                         'source_page': sp,
@@ -450,15 +640,11 @@ def format_result(prompts: List[str], raw_result: Dict) -> Dict[str, Dict[str, s
                     }
                 else:
                     formatted[field_key] = {
-                        'prompt': prompt,
-                        'response': 'No response',
-                        'source_quote': '',
-                        'source_page': None,
-                        'source': ''
+                        'prompt': prompt, 'name': prompt, 'type': 'text', 'level': 'study',
+                        'response': 'No response', 'source_quote': '', 'source_page': None, 'source': ''
                     }
             return formatted
 
-    # Normalize: list → {"responses": list}
     if isinstance(raw_result, list):
         raw_result = {"responses": raw_result}
 
@@ -470,7 +656,6 @@ def format_result(prompts: List[str], raw_result: Dict) -> Dict[str, Dict[str, s
         field_key = f"field_{i+1}"
         if i < len(responses) and isinstance(responses[i], dict):
             item = responses[i]
-            # Normalize source_page from 'page' or 'source_page' field
             sp = item.get('page') or item.get('source_page')
             if sp is not None:
                 try:
@@ -478,19 +663,15 @@ def format_result(prompts: List[str], raw_result: Dict) -> Dict[str, Dict[str, s
                 except (ValueError, TypeError):
                     sp = None
             formatted[field_key] = {
-                'prompt': prompt,
+                'prompt': prompt, 'name': prompt, 'type': 'text', 'level': 'study',
                 'response': item.get('response', ''),
                 'source_quote': item.get('source', '') or item.get('source_quote', ''),
-                'source_page': sp,
-                'source': item.get('source', '')
+                'source_page': sp, 'source': item.get('source', '')
             }
         else:
             formatted[field_key] = {
-                'prompt': prompt,
-                'response': 'No response',
-                'source_quote': '',
-                'source_page': None,
-                'source': ''
+                'prompt': prompt, 'name': prompt, 'type': 'text', 'level': 'study',
+                'response': 'No response', 'source_quote': '', 'source_page': None, 'source': ''
             }
 
     return formatted

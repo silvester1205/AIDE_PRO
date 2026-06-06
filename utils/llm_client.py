@@ -258,15 +258,22 @@ def analyze_with_llm(
         if study_fields:
             instructions.append(f"Study-level fields ({len(study_fields)} items): return a SINGLE value for each.")
         if arm_fields:
-            instructions.append(f"Arm-level fields ({len(arm_fields)} items): return an ARRAY of values, one per study arm. "
-                                "All arm-level arrays MUST have the SAME LENGTH (one entry per arm).")
+            instructions.append(
+                f"Arm-level fields ({len(arm_fields)} items): "
+                "MUST return an ARRAY (JSON list) of values, one per study arm. "
+                "Additionally, for each arm field, ALSO return 'sources' (array of source texts, one per arm) "
+                "and 'pages' (array of page numbers, one per arm). "
+                "All arrays ('response', 'sources', 'pages') MUST have the SAME LENGTH (one entry per arm). "
+                "If all arms share the same source/page, you may duplicate the same value across entries. "
+                "Example: for 'Group N' with 3 arms, return: "
+                '{{"response": [60, 58, 62], "sources": ["...", "...", "..."], "pages": [5, 6, 6]}}')
 
         # Build example from first study field and first arm field
         ex_items = []
         for f in template_fields[:2]:
             name_esc = f.get('name', f.get('prompt', '')).replace('"', "'")
             if f.get('level') == 'arm':
-                ex_items.append(f'  {{"field": "{name_esc}", "response": ["value1", "value2"], "source": "<exact text from document>", "page": "<page number>", "level": "arm"}}')
+                ex_items.append(f'  {{"field": "{name_esc}", "response": ["value1", "value2"], "sources": ["source text for arm1", "source text for arm2"], "pages": [5, 5], "level": "arm"}}')
             else:
                 ex_items.append(f'  {{"field": "{name_esc}", "response": "<answer>", "source": "<exact text from document>", "page": "<page number>", "level": "study"}}')
         example_json = '{\n"responses": [\n' + ',\n'.join(ex_items) + '\n]\n}'
@@ -283,9 +290,10 @@ Fields to extract:
 
 {instruction_text}
 
-Your responses array MUST have exactly {len(template_fields)} items — one per field, in order.
-For arm-level fields, the "response" field MUST be an array of values (one per study arm); for study-level fields, a single value.
-All arm-level arrays must have the same length.
+CRITICAL: Your responses array MUST have exactly {len(template_fields)} items — one per field, in order.
+For arm-level fields: "response" MUST be a JSON ARRAY (e.g., ["value1", "value2"]); also include "sources" (array of source texts) and "pages" (array of page numbers) — all same length.
+For study-level fields: "response" MUST be a single string/value; include "source" (text) and "page" (number).
+All arm-level arrays MUST have identical lengths (same number of arms).
 
 Use this structure (copy and replace with your answers):
 {example_json}
@@ -422,14 +430,19 @@ def build_system_prompt(template_fields_or_prompts) -> str:
 
 For each field you MUST provide:
 1. "response": The extracted answer.
-   - For study-level fields: a single value.
-   - For arm-level fields: an ARRAY of values, one per study arm.
-2. "source": The EXACT original text snippet from the document that supports your answer.
-3. "page": The specific page number where this information was found.
-4. "level": Either "study" or "arm" matching the field definition.
+   - For study-level fields: a single value (string or number).
+   - For arm-level fields: a JSON ARRAY of values, one per study arm. Example: ["arm1_value", "arm2_value", "arm3_value"].
+2. "source" / "page": For study-level fields, provide a single source text and page number.
+   For arm-level fields, provide "sources" (array of source texts) and "pages" (array of page numbers), one per arm.
+3. "level": Either "study" or "arm" matching the field definition.
+
+IMPORTANT: Arm-level fields MUST have "response", "sources", and "pages" all as arrays of the same length.
+Study-level fields MUST have "response" as a single value, with "source" and "page" as single values.
 
 Return ONLY valid JSON using this structure:
 {"responses": [{"field": "...", "response": "...", "source": "...", "page": "...", "level": "..."}]}
+
+For arm fields, use: {"field": "...", "response": ["v1","v2"], "sources": ["src1","src2"], "pages": [1,2], "level": "arm"}
 
 No markdown, no code blocks, no extra text outside the JSON."""
 
@@ -477,8 +490,14 @@ def format_result(template_fields_or_prompts, raw_result: Dict) -> Dict[str, Dic
                         'response': field_data.get('response', ''),
                         'source_quote': field_data.get('source_quote', '') or field_data.get('source', ''),
                         'source_page': sp,
-                        'source': field_data.get('source', '')
+                        'source': field_data.get('source', ''),
+                        'arm_sources': [],
+                        'arm_pages': [],
                     }
+                    if f.get('level') == 'arm':
+                        resp = formatted[field_key]['response']
+                        if not isinstance(resp, list):
+                            formatted[field_key]['response'] = [str(resp)]
             return formatted
 
     # Normalize: list → {"responses": list}
@@ -507,8 +526,15 @@ def format_result(template_fields_or_prompts, raw_result: Dict) -> Dict[str, Dic
                 'response': item.get('response', ''),
                 'source_quote': item.get('source', '') or item.get('source_quote', ''),
                 'source_page': sp,
-                'source': item.get('source', '')
+                'source': item.get('source', ''),
+                'arm_sources': item.get('sources', []) if isinstance(item.get('sources'), list) else [],
+                'arm_pages': item.get('pages', []) if isinstance(item.get('pages'), list) else [],
             }
+            # Normalize arm-level responses
+            if f.get('level') == 'arm':
+                resp = formatted[field_key]['response']
+                if not isinstance(resp, list):
+                    formatted[field_key]['response'] = [str(resp)]
         else:
             formatted[field_key] = {
                 'prompt': f.get('prompt', f.get('name', '')),
@@ -518,20 +544,84 @@ def format_result(template_fields_or_prompts, raw_result: Dict) -> Dict[str, Dic
                 'response': 'No response',
                 'source_quote': '',
                 'source_page': None,
-                'source': ''
+                'source': '',
+                'arm_sources': [],
+                'arm_pages': [],
             }
 
     return formatted
 
 
-def generate_template(config: Dict[str, str], topic: str, prompt_count: int = 14) -> Tuple[bool, Any]:
+
+# ── Base templates ──
+
+_BASE_RCT = [
+    {"name": "Author+Year", "prompt": "First author last name and publication year. Format: 'Smith 2023'.", "type": "text", "level": "study"},
+    {"name": "Registration", "prompt": "Trial registration number (e.g., NCT01234567). If not reported, write 'Not reported'.", "type": "text", "level": "study"},
+    {"name": "Total_Sample_Size", "prompt": "Total number of participants enrolled in the study.", "type": "integer", "level": "study"},
+    {"name": "Group_Label", "prompt": "Name/label of each study arm.", "type": "text", "level": "arm"},
+    {"name": "Group_N", "prompt": "Number of participants in this arm (sample size per group).", "type": "integer", "level": "arm"},
+    {"name": "Age", "prompt": "Age per arm. Format: mean±SD (or median [IQR]).", "type": "text", "level": "arm"},
+    {"name": "Sex_Female%", "prompt": "Female percentage per arm. Format: N (%). Example: '132 (55%)'.", "type": "text", "level": "arm"},
+    {"name": "Intervention", "prompt": "Detailed description of intervention for this arm: drug, dose, frequency, route, duration.", "type": "text", "level": "arm"},
+    {"name": "Primary_Outcome", "prompt": "Primary outcome name and result for this arm. Format: 'outcome name: value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "Secondary_Outcomes", "prompt": "Key secondary outcomes for this arm. One outcome per line. Format: 'outcome: value'.", "type": "text", "level": "arm"},
+    {"name": "Adverse_Events", "prompt": "Adverse events for this arm: any AE, serious AE, discontinuation due to AE. Format: 'AE name: N (%)'.", "type": "text", "level": "arm"},
+    {"name": "D1_Randomization", "prompt": "ROB2 Domain 1 — Risk of bias arising from randomization process. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D2_Deviations", "prompt": "ROB2 Domain 2 — Risk of bias due to deviations from intended interventions. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D3_MissingData", "prompt": "ROB2 Domain 3 — Risk of bias due to missing outcome data. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D4_Measurement", "prompt": "ROB2 Domain 4 — Risk of bias in measurement of outcome. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D5_Selection", "prompt": "ROB2 Domain 5 — Risk of bias in selection of reported result. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "Overall_ROB", "prompt": "Overall ROB2 judgment. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+]
+
+_BASE_COHORT = [
+    {"name": "Author+Year", "prompt": "First author last name and publication year. Format: 'Smith 2023'.", "type": "text", "level": "study"},
+    {"name": "Study_Design", "prompt": "Specific study design (e.g., 'retrospective cohort', 'prospective cohort').", "type": "text", "level": "study"},
+    {"name": "Total_Sample_Size", "prompt": "Total number of participants.", "type": "integer", "level": "study"},
+    {"name": "Exposed_Group_N", "prompt": "Number of participants in the exposed/study group.", "type": "integer", "level": "study"},
+    {"name": "Unexposed_Group_N", "prompt": "Number of participants in the unexposed/control group.", "type": "integer", "level": "study"},
+    {"name": "Age", "prompt": "Age by group. Format: 'Exposed: mean±SD, Unexposed: mean±SD'.", "type": "text", "level": "study"},
+    {"name": "Sex_Female%", "prompt": "Female percentage. Format: 'Exposed: N(%), Unexposed: N(%)'.", "type": "text", "level": "study"},
+    {"name": "Follow_up_duration", "prompt": "Duration of follow-up.", "type": "text", "level": "study"},
+    {"name": "Primary_Outcome", "prompt": "Primary outcome definition and results. Format: 'outcome: exposed_value vs unexposed_value'.", "type": "text", "level": "study"},
+    {"name": "Effect_Estimate", "prompt": "Adjusted effect estimate (HR/OR/RR) with 95% CI. Format: 'HR=1.25 (95%CI 1.10-1.42)'.", "type": "text", "level": "study"},
+    {"name": "Confounders_Adjusted", "prompt": "List of confounders adjusted for in the analysis.", "type": "text", "level": "study"},
+    {"name": "NOS_Selection", "prompt": "NOS Selection domain. Valid values: 0-4 stars", "type": "categorical", "level": "study"},
+    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain. Valid values: 0-2 stars", "type": "categorical", "level": "study"},
+    {"name": "NOS_Outcome", "prompt": "NOS Outcome domain. Valid values: 0-3 stars", "type": "categorical", "level": "study"},
+]
+
+_BASE_DIAGNOSTIC = [
+    {"name": "Author+Year", "prompt": "First author last name and publication year. Format: 'Smith 2023'.", "type": "text", "level": "study"},
+    {"name": "Sample_Size", "prompt": "Total number of participants/eyes/lesions.", "type": "integer", "level": "study"},
+    {"name": "Setting", "prompt": "Study setting and population.", "type": "text", "level": "study"},
+    {"name": "Index_Test", "prompt": "Index test name and details.", "type": "text", "level": "study"},
+    {"name": "Reference_Standard", "prompt": "Reference standard used.", "type": "text", "level": "study"},
+    {"name": "TP", "prompt": "True positives.", "type": "integer", "level": "study"},
+    {"name": "FP", "prompt": "False positives.", "type": "integer", "level": "study"},
+    {"name": "FN", "prompt": "False negatives.", "type": "integer", "level": "study"},
+    {"name": "TN", "prompt": "True negatives.", "type": "integer", "level": "study"},
+    {"name": "Sensitivity", "prompt": "Sensitivity with 95%CI.", "type": "text", "level": "study"},
+    {"name": "Specificity", "prompt": "Specificity with 95%CI.", "type": "text", "level": "study"},
+    {"name": "AUC", "prompt": "Area under the ROC curve with 95%CI.", "type": "text", "level": "study"},
+    {"name": "QUADAS_PatientSelection", "prompt": "QUADAS-2 Patient selection bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_IndexTest", "prompt": "QUADAS-2 Index test bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_ReferenceStandard", "prompt": "QUADAS-2 Reference standard bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_FlowTiming", "prompt": "QUADAS-2 Flow and timing bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+]
+
+
+def generate_template(config: Dict[str, str], topic: str, prompt_count: int = 0) -> Tuple[bool, Any]:
     """
-    Use LLM to generate a template of extraction fields from a research topic.
+    Use LLM to refine a base template based on the research topic.
+
+    First identifies study type, selects appropriate base template,
+    then asks LLM to customize it for the specific topic.
 
     Args:
         config: Dictionary with 'endpoint', 'api_key', 'model'
         topic: Research topic or abstract text
-        prompt_count: Approximate number of fields to generate
 
     Returns:
         Tuple of (success, result) where result is a list of field dicts or error message
@@ -546,36 +636,67 @@ def generate_template(config: Dict[str, str], topic: str, prompt_count: int = 14
             timeout=60.0
         )
 
-        system_msg = "You are an expert in systematic review methodology. Generate extraction templates for data extraction."
+        # Step 1: Identify study type
+        study_type_prompt = f"""Read this research topic/abstract and determine the study design.
+Return ONLY one word: RCT / Cohort / Diagnostic / CrossSectional / CaseSeries / Other
+
+{topic[:500]}"""
+
+        study_type = "RCT"  # default
+        try:
+            st_resp = client.chat.completions.create(
+                model=config['model'],
+                messages=[{"role": "user", "content": study_type_prompt}],
+                temperature=0, max_tokens=20, timeout=30,
+            )
+            raw = (st_resp.choices[0].message.content or "").strip().lower()
+            for t in ["rct", "cohort", "diagnostic", "crosssectional", "caseseries"]:
+                if t in raw:
+                    study_type = {"rct": "RCT", "cohort": "Cohort", "diagnostic": "Diagnostic",
+                                  "crosssectional": "CrossSectional", "caseseries": "CaseSeries"}[t]
+                    break
+        except Exception:
+            pass
+
+        # Step 2: Select base template
+        if study_type == "RCT":
+            base_fields = _BASE_RCT
+        elif study_type == "Diagnostic":
+            base_fields = _BASE_DIAGNOSTIC
+        else:  # Cohort, CrossSectional, CaseSeries, Other
+            base_fields = _BASE_COHORT
+
+        # Step 3: Ask LLM to customize the base template
+        base_json = json.dumps(base_fields, ensure_ascii=False, indent=2)
+        system_msg = "You are an expert in systematic review methodology. Customize extraction templates for specific studies."
 
         user_msg = f"""Research topic / abstract:
 ---
 {topic}
 ---
 
-Based on this topic, generate a template with {prompt_count} extraction fields.
+Study type: {study_type}
 
-The template must cover these 4 categories as appropriate:
-1. **基本信息** (study info: author+year, registration, design, sample size)
-2. **基线信息** (baseline characteristics: age, sex, disease-specific measures)
-3. **结局指标/效应量** (outcomes / effect size: primary and secondary outcomes)
-4. **质量评估** (risk of bias: ROB2 for RCTs, NOS for cohort, QUADAS-2 for diagnostic)
+Below is a base extraction template for this study type. Customize it for the SPECIFIC topic:
 
-For each field, decide whether it is:
-- "study" level: ONE value per study (e.g., author+year, sample size, ROB2 domain)
-- "arm" level: ONE value per study ARM (e.g., group label, group N, outcome per group)
+{base_json}
 
-Return ONLY valid JSON in this format:
+### Instructions:
+1. Keep ONLY fields that are relevant to THIS specific study
+2. ADD disease-specific measures as separate fields (e.g., for COPD: add FEV1, FVC, SGRQ; for diabetes: add HbA1c, fasting glucose)
+3. Adjust prompts to be specific to this study's outcomes and interventions
+4. Reorder fields: basic info first, then baseline, then outcomes, then quality assessment
+5. DO NOT change field names of existing fields unless necessary
+6. Add appropriate extra arm-level outcome fields as needed
+7. Total fields should be 12-25 depending on study complexity
+
+Return ONLY valid JSON:
 {{"fields": [
-  {{"name": "Field short name", "prompt": "Detailed extraction prompt with format instructions", "type": "text", "level": "study"}},
+  {{"name": "...", "prompt": "...", "type": "text|integer|float|categorical", "level": "study|arm"}},
   ...
 ]}}
 
-Field types: "text", "integer", "float", "boolean", "categorical"
-
-CRITICAL: Return ONLY the JSON. No markdown, no code blocks, no extra text.
-Include {prompt_count} fields. Make prompts detailed so the LLM knows exactly what to extract.
-For categorical fields, mention the valid categories in the prompt.
+No markdown, no code blocks, no extra text.
 """
 
         response = client.chat.completions.create(

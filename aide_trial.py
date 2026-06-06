@@ -272,7 +272,7 @@ class FieldCard(QFrame):
         label.setStyleSheet("color:#555;font-size:12px;")
         hdr.addWidget(label)
 
-        src_btn = QPushButton("📍 Src")
+        src_btn = QPushButton("📍 Source")
         src_btn.setFixedWidth(70)
         src_btn.setStyleSheet(
             "QPushButton{border-radius:4px;padding:3px 8px;font-size:11px;"
@@ -1209,10 +1209,12 @@ class AnalyzeTab(QWidget):
             response = data.get('response', '')
 
             if level == 'arm' and isinstance(response, list):
+                arm_sources = data.get('arm_sources', [])
+                arm_pages = data.get('arm_pages', [])
                 for ai in range(len(response)):
                     arm_resp = response[ai] if ai < len(response) else ''
-                    arm_src = data.get('source', '')
-                    arm_page = data.get('source_page', None)
+                    arm_src = arm_sources[ai] if ai < len(arm_sources) else data.get('source', '')
+                    arm_page = arm_pages[ai] if ai < len(arm_pages) else data.get('source_page', None)
                     card.set_data(arm_resp, arm_src, arm_page, ai)
             else:
                 card.set_data(
@@ -1625,18 +1627,18 @@ class ExportTab(QWidget):
         self.export_xlsx = QPushButton("📥 Export Excel")
         self.export_xlsx.setStyleSheet(
             "QPushButton{border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;"
-            "border:none;background:#3498db;color:#fff;}"
-            "QPushButton:hover{background:#2980b9;}")
+            "border:none;background:#2ecc71;color:#fff;}"
+            "QPushButton:hover{background:#27ae60;}")
         self.export_xlsx.clicked.connect(lambda: self._do_export("xlsx"))
         hdr.addWidget(self.export_xlsx)
 
-        self.export_csv = QPushButton("📥 Export CSV")
-        self.export_csv.setStyleSheet(
+        self.export_wide = QPushButton("📤 Export Wide")
+        self.export_wide.setStyleSheet(
             "QPushButton{border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;"
-            "border:none;background:#2ecc71;color:#fff;}"
-            "QPushButton:hover{background:#27ae60;}")
-        self.export_csv.clicked.connect(lambda: self._do_export("csv"))
-        hdr.addWidget(self.export_csv)
+            "border:none;background:#9b59b6;color:#fff;}"
+            "QPushButton:hover{background:#8e44ad;}")
+        self.export_wide.clicked.connect(self._export_wide)
+        hdr.addWidget(self.export_wide)
 
         layout.addLayout(hdr)
 
@@ -1808,16 +1810,66 @@ class ExportTab(QWidget):
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, f"Export {fmt.upper()}", f"coding_results.{fmt}",
-            f"{fmt.upper()} Files (*.{fmt})")
+            self, f"Export Data", f"coding_results.{fmt}",
+            "Excel Files (*.xlsx);;CSV Files (*.csv)")
         if not path:
             return
         try:
-            if fmt == 'xlsx':
+            actual_fmt = 'csv' if path.endswith('.csv') else 'xlsx'
+            if actual_fmt == 'xlsx':
                 mw.coding_form_df.to_excel(path, index=False, header=False, engine='openpyxl')
             else:
                 mw.coding_form_df.to_csv(path, index=False, header=False, encoding='utf-8-sig')
             QMessageBox.information(self, "Done", f"Saved to {path}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", str(e))
+
+    def _export_wide(self):
+        """Export wide format: one row per study (pivot on arm fields)."""
+        mw = self._mw()
+        if mw is None or mw.coding_form_df is None or len(mw.coding_form_df) < 2:
+            QMessageBox.warning(self, "No Data", "Nothing to export yet.")
+            return
+        df = mw.coding_form_df
+        if len(df) < 2:
+            QMessageBox.warning(self, "No Data", "No data rows to export.")
+            return
+        header = [str(df.iloc[0, c]) if pd.notna(df.iloc[0, c]) else f"Col{c}" for c in range(len(df.columns))]
+        data = df.iloc[1:].copy()
+        data.columns = header
+        first_col = header[0]
+        try:
+            grouped = data.groupby(first_col, sort=False)
+            wide_rows = []
+            for study_name, group in grouped:
+                row = {first_col: study_name}
+                arm_num = 0
+                for _, arm_row in group.iterrows():
+                    arm_num += 1
+                    for col in header[1:]:
+                        row[f"{col}_arm{arm_num}"] = arm_row.get(col, '')
+                row['_n_arms'] = arm_num
+                wide_rows.append(row)
+            if not wide_rows:
+                QMessageBox.information(self, "No Data", "Could not pivot data.")
+                return
+            out = pd.DataFrame(wide_rows)
+            out = out.drop(columns=['_n_arms'])
+        except Exception as e:
+            QMessageBox.warning(self, "Pivot Failed", f"Could not pivot: {e}\nExporting raw format.")
+            out = data
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Wide Format", "coding_results_wide.csv",
+            "CSV Files (*.csv);;Excel Files (*.xlsx)")
+        if not path:
+            return
+        try:
+            if path.endswith('.xlsx'):
+                out.to_excel(path, index=False, engine='openpyxl')
+            else:
+                out.to_csv(path, index=False, encoding='utf-8-sig')
+            QMessageBox.information(self, "Done", f"Saved wide format ({len(out)} studies) to {path}")
         except Exception as e:
             QMessageBox.warning(self, "Error", str(e))
 

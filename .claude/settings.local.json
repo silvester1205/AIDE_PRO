@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(venv/Scripts/pip install:*)",
-      "Bash(venv/Scripts/python -c \"import ast; ast.parse\\(open\\('desktop_app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
-      "Bash(python _fix_trial.py)"
-    ]
-  }
-}

@@ -745,10 +745,20 @@ class SetupTab(QWidget):
         tpl_layout = QVBoxLayout(tpl_grp)
 
         # Research topic + generate
+        picos_label = QLabel(
+            '<span style="color:#555;font-size:12px;">'
+            'Describe your research using <b>PICOS</b> for best results, or paste the full abstract:</span>')
+        picos_label.setWordWrap(True)
+        tpl_layout.addWidget(picos_label)
+
         topic_row = QHBoxLayout()
         self.topic_input = QTextEdit()
-        self.topic_input.setPlaceholderText("Paste research topic or abstract here...\n\nExample: Effects of antimicrobial stewardship on ICU length of stay and mortality: a multicenter RCT")
-        self.topic_input.setMaximumHeight(80)
+        self.topic_input.setPlaceholderText(
+"P: adults with type 2 diabetes | I: metformin | C: placebo | O: HbA1c, fasting glucose, weight | S: RCT\n\n"
+"P: ICU patients with sepsis | I: early goal-directed therapy | C: standard care | O: mortality, LOS | S: multicenter RCT\n\n"
+"P: elderly women with osteoporosis | I: bisphosphonates | C: calcium + vitamin D | O: fracture rate, BMD | S: cohort")
+        self.topic_input.setMinimumHeight(80)
+        self.topic_input.setMaximumHeight(120)
         self.topic_input.setStyleSheet(
             "QTextEdit{border:1px solid #ddd;border-radius:6px;padding:6px;font-size:13px;}")
         topic_row.addWidget(self.topic_input, 1)
@@ -774,14 +784,13 @@ class SetupTab(QWidget):
         tpl_layout.addWidget(QLabel("Extraction Fields (editable):"))
 
         self.field_table = QTableWidget()
-        self.field_table.setColumnCount(4)
-        self.field_table.setHorizontalHeaderLabels(["Field Name", "Prompt / Instruction", "Type", "Level"])
+        self.field_table.setColumnCount(3)
+        self.field_table.setHorizontalHeaderLabels(["Field Name", "Prompt / Instruction", "Level"])
         self.field_table.setAlternatingRowColors(True)
         self.field_table.horizontalHeader().setStretchLastSection(False)
         self.field_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.field_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.field_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.field_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.field_table.verticalHeader().hide()
         self.field_table.setMinimumHeight(180)
         self.field_table.setStyleSheet(
@@ -872,11 +881,9 @@ class SetupTab(QWidget):
                 continue
             name = name_item.text().strip()
             prompt = prompt_item.text().strip() if prompt_item else name
-            type_widget = self.field_table.cellWidget(r, 2)
-            ftype = type_widget.currentText() if type_widget else 'text'
-            level_widget = self.field_table.cellWidget(r, 3)
+            level_widget = self.field_table.cellWidget(r, 2)
             level = level_widget.currentText() if level_widget else 'study'
-            fields.append({'name': name, 'prompt': prompt, 'type': ftype, 'level': level})
+            fields.append({'name': name, 'prompt': prompt, 'type': 'text', 'level': level})
         return fields
 
     def _populate_table(self, fields: list):
@@ -885,23 +892,16 @@ class SetupTab(QWidget):
             self._add_field_row(f)
 
     def _add_field_row(self, field_def=None):
-        r = self.field_table.rowCount()
+        # Insert after current selection, or at end if none selected
+        sel = self.field_table.currentRow()
+        r = sel + 1 if sel >= 0 else self.field_table.rowCount()
         self.field_table.insertRow(r)
         name = field_def.get('name', '') if field_def else ''
         prompt = field_def.get('prompt', name) if field_def else ''
-        ftype = field_def.get('type', 'text') if field_def else 'text'
         level = field_def.get('level', 'study') if field_def else 'study'
 
         self.field_table.setItem(r, 0, QTableWidgetItem(name))
         self.field_table.setItem(r, 1, QTableWidgetItem(prompt))
-
-        tc = QComboBox()
-        tc.addItems(['text', 'integer', 'float', 'boolean', 'categorical'])
-        idx = tc.findText(ftype)
-        if idx >= 0:
-            tc.setCurrentIndex(idx)
-        tc.setStyleSheet("QComboBox{font-size:11px;padding:2px;}")
-        self.field_table.setCellWidget(r, 2, tc)
 
         lc = QComboBox()
         lc.addItems(['study', 'arm'])
@@ -909,7 +909,7 @@ class SetupTab(QWidget):
         if idx >= 0:
             lc.setCurrentIndex(idx)
         lc.setStyleSheet("QComboBox{font-size:11px;padding:2px;}")
-        self.field_table.setCellWidget(r, 3, lc)
+        self.field_table.setCellWidget(r, 2, lc)
 
         self.apply_btn.setEnabled(True)
         self.tpl_status.setText(f"{self.field_table.rowCount()} field(s) defined — click Apply")

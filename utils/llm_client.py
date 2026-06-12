@@ -564,32 +564,34 @@ _BASE_RCT = [
     {"name": "Age", "prompt": "Age per arm. Format: mean±SD (or median [IQR]).", "type": "text", "level": "arm"},
     {"name": "Sex_Female%", "prompt": "Female percentage per arm. Format: N (%). Example: '132 (55%)'.", "type": "text", "level": "arm"},
     {"name": "Intervention", "prompt": "Detailed description of intervention for this arm: drug, dose, frequency, route, duration.", "type": "text", "level": "arm"},
-    {"name": "Primary_Outcome", "prompt": "Primary outcome name and result for this arm. Format: 'outcome name: value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
-    {"name": "Secondary_Outcomes", "prompt": "Key secondary outcomes for this arm. One outcome per line. Format: 'outcome: value'.", "type": "text", "level": "arm"},
-    {"name": "Adverse_Events", "prompt": "Adverse events for this arm: any AE, serious AE, discontinuation due to AE. Format: 'AE name: N (%)'.", "type": "text", "level": "arm"},
-    {"name": "D1_Randomization", "prompt": "ROB2 Domain 1 — Risk of bias arising from randomization process. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
-    {"name": "D2_Deviations", "prompt": "ROB2 Domain 2 — Risk of bias due to deviations from intended interventions. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
-    {"name": "D3_MissingData", "prompt": "ROB2 Domain 3 — Risk of bias due to missing outcome data. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
-    {"name": "D4_Measurement", "prompt": "ROB2 Domain 4 — Risk of bias in measurement of outcome. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
-    {"name": "D5_Selection", "prompt": "ROB2 Domain 5 — Risk of bias in selection of reported result. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
-    {"name": "Overall_ROB", "prompt": "Overall ROB2 judgment. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "Outcome_1", "prompt": "Replace 'Outcome_1' with actual outcome name. Extract ONLY this arm's value. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "Outcome_2", "prompt": "Replace 'Outcome_2' with actual outcome name. Extract ONLY this arm's value. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "Outcome_3", "prompt": "Replace 'Outcome_3' with actual outcome name. Extract ONLY this arm's value. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "D1_Randomization", "prompt": "ROB2 Domain 1 — Risk of bias arising from randomization process. Assess: random sequence generation (was the allocation sequence random?), allocation concealment (was the allocation sequence concealed until participants were enrolled?), baseline differences between groups. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D2_Deviations", "prompt": "ROB2 Domain 2 — Risk of bias due to deviations from intended interventions (effect of assignment). Assess: blinding of participants and personnel, whether the analysis was appropriate to estimate the effect of assignment (ITT analysis), deviations from the intended intervention that arose because of the trial context. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D3_MissingData", "prompt": "ROB2 Domain 3 — Risk of bias due to missing outcome data. Assess: total dropout rate per group, reasons for dropout, whether missing data were balanced across groups, how missing data were handled in the analysis (e.g., LOCF, multiple imputation, complete case). Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D4_Measurement", "prompt": "ROB2 Domain 4 — Risk of bias in measurement of the outcome. Assess: whether outcome assessors were blinded, whether the outcome measurement method was appropriate, whether the measurement differed between groups, whether knowledge of intervention status could have influenced outcome assessment. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "D5_Selection", "prompt": "ROB2 Domain 5 — Risk of bias in selection of the reported result. Assess: whether the trial was pre-registered, whether the analysis plan was pre-specified, whether results were reported according to the pre-specified plan, evidence of selective reporting (e.g., outcomes measured but not reported, reporting only favorable results). Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "Overall_ROB", "prompt": "Overall ROB2 judgment based on Domains 1-5. If any domain is High risk → High risk. If multiple domains are Some concerns → High risk. If no domain is High risk and one domain is Some concerns → Some concerns. If all domains are Low risk → Low risk. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
 ]
 
 _BASE_COHORT = [
     {"name": "Author+Year", "prompt": "First author last name and publication year. Format: 'Smith 2023'.", "type": "text", "level": "study"},
     {"name": "Study_Design", "prompt": "Specific study design (e.g., 'retrospective cohort', 'prospective cohort').", "type": "text", "level": "study"},
     {"name": "Total_Sample_Size", "prompt": "Total number of participants.", "type": "integer", "level": "study"},
-    {"name": "Exposed_Group_N", "prompt": "Number of participants in the exposed/study group.", "type": "integer", "level": "study"},
-    {"name": "Unexposed_Group_N", "prompt": "Number of participants in the unexposed/control group.", "type": "integer", "level": "study"},
-    {"name": "Age", "prompt": "Age by group. Format: 'Exposed: mean±SD, Unexposed: mean±SD'.", "type": "text", "level": "study"},
-    {"name": "Sex_Female%", "prompt": "Female percentage. Format: 'Exposed: N(%), Unexposed: N(%)'.", "type": "text", "level": "study"},
+    {"name": "Group_Label", "prompt": "Name/label of each group (e.g., 'Exposed', 'Unexposed').", "type": "text", "level": "arm"},
+    {"name": "Group_N", "prompt": "Number of participants in this group.", "type": "integer", "level": "arm"},
+    {"name": "Age", "prompt": "Age for this group. Format: mean±SD (or median [IQR]).", "type": "text", "level": "arm"},
+    {"name": "Sex_Female%", "prompt": "Female percentage for this group. Format: N (%). Example: '132 (55%)'.", "type": "text", "level": "arm"},
     {"name": "Follow_up_duration", "prompt": "Duration of follow-up.", "type": "text", "level": "study"},
-    {"name": "Primary_Outcome", "prompt": "Primary outcome definition and results. Format: 'outcome: exposed_value vs unexposed_value'.", "type": "text", "level": "study"},
     {"name": "Effect_Estimate", "prompt": "Adjusted effect estimate (HR/OR/RR) with 95% CI. Format: 'HR=1.25 (95%CI 1.10-1.42)'.", "type": "text", "level": "study"},
     {"name": "Confounders_Adjusted", "prompt": "List of confounders adjusted for in the analysis.", "type": "text", "level": "study"},
-    {"name": "NOS_Selection", "prompt": "NOS Selection domain. Valid values: 0-4 stars", "type": "categorical", "level": "study"},
-    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain. Valid values: 0-2 stars", "type": "categorical", "level": "study"},
-    {"name": "NOS_Outcome", "prompt": "NOS Outcome domain. Valid values: 0-3 stars", "type": "categorical", "level": "study"},
+    {"name": "Outcome_1", "prompt": "Replace with actual outcome name. Extract ONLY this group's result. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "Outcome_2", "prompt": "Replace with actual outcome name. Extract ONLY this group's result. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "Outcome_3", "prompt": "Replace with actual outcome name. Extract ONLY this group's result. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
+    {"name": "NOS_Selection", "prompt": "NOS Selection domain. Assess: (1) Adequacy of case definition, (2) Representativeness of cases, (3) Selection of controls, (4) Definition of controls. Valid values: 0-4 stars (one star per item)", "type": "categorical", "level": "study"},
+    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain. Assess: comparability of cohorts on the basis of design or analysis — did the study control for the most important factor? Did it control for additional factors? Valid values: 0-2 stars (one star for each factor controlled)", "type": "categorical", "level": "study"},
+    {"name": "NOS_Outcome", "prompt": "NOS Outcome domain. Assess: (1) Assessment of outcome (record linkage, independent blind assessment, self-report), (2) Was follow-up long enough for outcomes to occur?, (3) Adequacy of follow-up of cohorts (loss to follow-up <5% = adequate). Valid values: 0-3 stars (one star per item)", "type": "categorical", "level": "study"},
 ]
 
 _BASE_DIAGNOSTIC = [
@@ -605,10 +607,25 @@ _BASE_DIAGNOSTIC = [
     {"name": "Sensitivity", "prompt": "Sensitivity with 95%CI.", "type": "text", "level": "study"},
     {"name": "Specificity", "prompt": "Specificity with 95%CI.", "type": "text", "level": "study"},
     {"name": "AUC", "prompt": "Area under the ROC curve with 95%CI.", "type": "text", "level": "study"},
-    {"name": "QUADAS_PatientSelection", "prompt": "QUADAS-2 Patient selection bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
-    {"name": "QUADAS_IndexTest", "prompt": "QUADAS-2 Index test bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
-    {"name": "QUADAS_ReferenceStandard", "prompt": "QUADAS-2 Reference standard bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
-    {"name": "QUADAS_FlowTiming", "prompt": "QUADAS-2 Flow and timing bias. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_PatientSelection", "prompt": "QUADAS-2 Domain 1 — Patient selection bias. Assess: (1) Was a consecutive or random sample of patients enrolled? (2) Was a case-control design avoided? (3) Did the study avoid inappropriate exclusions? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_IndexTest", "prompt": "QUADAS-2 Domain 2 — Index test bias. Assess: (1) Were the index test results interpreted without knowledge of the reference standard? (2) If a threshold was used, was it pre-specified? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_ReferenceStandard", "prompt": "QUADAS-2 Domain 3 — Reference standard bias. Assess: (1) Is the reference standard likely to correctly classify the target condition? (2) Were the reference standard results interpreted without knowledge of the index test? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_FlowTiming", "prompt": "QUADAS-2 Domain 4 — Flow and timing bias. Assess: (1) Was there an appropriate interval between index test and reference standard? (2) Did all patients receive a reference standard? (3) Did all patients receive the same reference standard? (4) Were all patients included in the analysis? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+]
+
+_BASE_CASE_CONTROL = [
+    {"name": "Author+Year", "prompt": "First author last name and publication year. Format: 'Smith 2023'.", "type": "text", "level": "study"},
+    {"name": "Total_Sample_Size", "prompt": "Total number of participants (cases + controls).", "type": "integer", "level": "study"},
+    {"name": "Case_Definition", "prompt": "Case definition: how were cases identified and diagnosed?", "type": "text", "level": "study"},
+    {"name": "Control_Source", "prompt": "Source of controls (e.g., hospital-based, population-based, neighborhood).", "type": "text", "level": "study"},
+    {"name": "Exposure_Measurement", "prompt": "How was the exposure/risk factor measured? (e.g., medical records, interview, questionnaire).", "type": "text", "level": "study"},
+    {"name": "Exposed_Cases", "prompt": "Number of cases with the exposure. Format: 'N (%)'.", "type": "text", "level": "study"},
+    {"name": "Exposed_Controls", "prompt": "Number of controls with the exposure. Format: 'N (%)'.", "type": "text", "level": "study"},
+    {"name": "Odds_Ratio", "prompt": "Odds ratio (OR) with 95% CI. If adjusted, specify. Format: 'OR=2.5 (95%CI 1.8-3.5)'.", "type": "text", "level": "study"},
+    {"name": "Confounders_Adjusted", "prompt": "List of confounders adjusted for in the analysis.", "type": "text", "level": "study"},
+    {"name": "NOS_Selection", "prompt": "NOS Selection domain for case-control studies. Assess: (1) Adequate case definition, (2) Representativeness of cases, (3) Selection of controls, (4) Definition of controls. Valid values: 0-4 stars", "type": "categorical", "level": "study"},
+    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain. Assess: comparability of cases and controls on the basis of design or analysis — did the study control for the most important factor? Additional factors? Valid values: 0-2 stars", "type": "categorical", "level": "study"},
+    {"name": "NOS_Exposure", "prompt": "NOS Exposure domain. Assess: (1) Ascertainment of exposure (e.g., secure records, structured interview, blinded), (2) Same method of ascertainment for cases and controls, (3) Non-response rate (same rate in both groups). Valid values: 0-3 stars", "type": "categorical", "level": "study"},
 ]
 
 
@@ -638,7 +655,8 @@ def generate_template(config: Dict[str, str], topic: str, prompt_count: int = 0)
 
         # Step 1: Identify study type
         study_type_prompt = f"""Read this research topic/abstract and determine the study design.
-Return ONLY one word: RCT / Cohort / Diagnostic / CrossSectional / CaseSeries / Other
+Return ONLY one word: RCT / Cohort / CaseControl / Diagnostic / CrossSectional / CaseSeries / Other
+For retrospective case-control studies, return 'CaseControl'. For retrospective cohort, return 'Cohort'.
 
 {topic[:500]}"""
 
@@ -650,10 +668,12 @@ Return ONLY one word: RCT / Cohort / Diagnostic / CrossSectional / CaseSeries / 
                 temperature=0, max_tokens=20, timeout=30,
             )
             raw = (st_resp.choices[0].message.content or "").strip().lower()
-            for t in ["rct", "cohort", "diagnostic", "crosssectional", "caseseries"]:
+            study_map = {"rct": "RCT", "cohort": "Cohort", "casecontrol": "CaseControl",
+                         "diagnostic": "Diagnostic", "crosssectional": "CrossSectional",
+                         "caseseries": "CaseSeries"}
+            for t in study_map:
                 if t in raw:
-                    study_type = {"rct": "RCT", "cohort": "Cohort", "diagnostic": "Diagnostic",
-                                  "crosssectional": "CrossSectional", "caseseries": "CaseSeries"}[t]
+                    study_type = study_map[t]
                     break
         except Exception:
             pass
@@ -663,6 +683,8 @@ Return ONLY one word: RCT / Cohort / Diagnostic / CrossSectional / CaseSeries / 
             base_fields = _BASE_RCT
         elif study_type == "Diagnostic":
             base_fields = _BASE_DIAGNOSTIC
+        elif study_type == "CaseControl":
+            base_fields = _BASE_CASE_CONTROL
         else:  # Cohort, CrossSectional, CaseSeries, Other
             base_fields = _BASE_COHORT
 
@@ -682,13 +704,16 @@ Below is a base extraction template for this study type. Customize it for the SP
 {base_json}
 
 ### Instructions:
-1. Keep ONLY fields that are relevant to THIS specific study
-2. ADD disease-specific measures as separate fields (e.g., for COPD: add FEV1, FVC, SGRQ; for diabetes: add HbA1c, fasting glucose)
-3. Adjust prompts to be specific to this study's outcomes and interventions
-4. Reorder fields: basic info first, then baseline, then outcomes, then quality assessment
-5. DO NOT change field names of existing fields unless necessary
-6. Add appropriate extra arm-level outcome fields as needed
-7. Total fields should be 12-25 depending on study complexity
+1. Use the **PICOS framework** to identify extraction fields: Population, Intervention, Comparison, Outcomes, Study design
+2. Keep ONLY fields that are relevant to THIS specific study
+3. For **outcomes**: REPLACE generic outcome fields with one field PER outcome. E.g., instead of "Outcome_1", create "FEV1" (arm), "Exacerbations" (arm), "Mortality" (arm) — each as a separate arm-level field
+4. ADD disease-specific baseline measures as separate fields (e.g., for COPD: add FEV1, FVC, SGRQ; for diabetes: add HbA1c, fasting glucose)
+5. Adjust prompts to reference the specific interventions and outcomes of THIS study
+6. Reorder fields: basic info → baseline → outcomes → quality assessment
+7. DO NOT change existing field names that are still relevant
+8. Quality assessment fields (ROB2/NOS/QUADAS) MUST be kept as-is, they are the core evaluation tool
+9. You can change the "level" of any field (except quality assessment) if appropriate for this study
+10. Total fields: 12-25 depending on study complexity
 
 Return ONLY valid JSON:
 {{"fields": [

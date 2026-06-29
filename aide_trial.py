@@ -224,7 +224,7 @@ class FieldCard(QFrame):
         For arm-level (arm_index>=0): adds/updates an arm item.
         """
         if self.level == 'study':
-            self.editor.setPlainText(response or "")
+            self.editor.setPlainText(str(response) if response is not None else "")
             self.source_quote = source_quote or ""
             self.source_page = source_page
             if source_quote:
@@ -245,7 +245,7 @@ class FieldCard(QFrame):
             self._arm_data[arm_index]['source_page'] = source_page
             if arm_index < len(self._arm_widgets):
                 w = self._arm_widgets[arm_index]
-                w['editor'].setPlainText(response or '')
+                w['editor'].setPlainText(str(response) if response is not None else '')
                 if source_quote:
                     q = source_quote[:80] + "…" if len(source_quote) > 80 else source_quote
                     txt = f"📝 {q}"

@@ -572,7 +572,7 @@ _BASE_RCT = [
     {"name": "D3_MissingData", "prompt": "ROB2 Domain 3 — Risk of bias due to missing outcome data. Assess: total dropout rate per group, reasons for dropout, whether missing data were balanced across groups, how missing data were handled in the analysis (e.g., LOCF, multiple imputation, complete case). Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
     {"name": "D4_Measurement", "prompt": "ROB2 Domain 4 — Risk of bias in measurement of the outcome. Assess: whether outcome assessors were blinded, whether the outcome measurement method was appropriate, whether the measurement differed between groups, whether knowledge of intervention status could have influenced outcome assessment. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
     {"name": "D5_Selection", "prompt": "ROB2 Domain 5 — Risk of bias in selection of the reported result. Assess: whether the trial was pre-registered, whether the analysis plan was pre-specified, whether results were reported according to the pre-specified plan, evidence of selective reporting (e.g., outcomes measured but not reported, reporting only favorable results). Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
-    {"name": "Overall_ROB", "prompt": "Overall ROB2 judgment based on Domains 1-5. If any domain is High risk → High risk. If multiple domains are Some concerns → High risk. If no domain is High risk and one domain is Some concerns → Some concerns. If all domains are Low risk → Low risk. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
+    {"name": "Overall_ROB", "prompt": "Overall ROB2 judgment based on Domains 1-5 ONLY. Rules: (1) If ANY domain is High risk → Overall = High risk. (2) If NO domain is High risk but ANY domain is Some concerns → Overall = Some concerns. (3) If ALL 5 domains are Low risk → Overall = Low risk. Do NOT upgrade to High risk just because multiple domains have Some concerns — multiple Some concerns still results in Some concerns, NOT High risk. Valid values: Low risk / Some concerns / High risk", "type": "categorical", "level": "study"},
 ]
 
 _BASE_COHORT = [
@@ -589,9 +589,10 @@ _BASE_COHORT = [
     {"name": "Outcome_1", "prompt": "Replace with actual outcome name. Extract ONLY this group's result. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
     {"name": "Outcome_2", "prompt": "Replace with actual outcome name. Extract ONLY this group's result. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
     {"name": "Outcome_3", "prompt": "Replace with actual outcome name. Extract ONLY this group's result. Format: 'value (mean±SD or N(%))'.", "type": "text", "level": "arm"},
-    {"name": "NOS_Selection", "prompt": "NOS Selection domain. Assess: (1) Adequacy of case definition, (2) Representativeness of cases, (3) Selection of controls, (4) Definition of controls. Valid values: 0-4 stars (one star per item)", "type": "categorical", "level": "study"},
-    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain. Assess: comparability of cohorts on the basis of design or analysis — did the study control for the most important factor? Did it control for additional factors? Valid values: 0-2 stars (one star for each factor controlled)", "type": "categorical", "level": "study"},
-    {"name": "NOS_Outcome", "prompt": "NOS Outcome domain. Assess: (1) Assessment of outcome (record linkage, independent blind assessment, self-report), (2) Was follow-up long enough for outcomes to occur?, (3) Adequacy of follow-up of cohorts (loss to follow-up <5% = adequate). Valid values: 0-3 stars (one star per item)", "type": "categorical", "level": "study"},
+    {"name": "NOS_Selection", "prompt": "NOS Selection domain (max 4 stars). Assess: (1) Representativeness of the exposed cohort — truly representative (★) / somewhat representative (★) / selected group / no description; (2) Selection of the non-exposed cohort — drawn from same community (★) / different source / no description; (3) Ascertainment of exposure — secure record (★) / structured interview (★) / self report / no description; (4) Demonstration outcome not present at start — yes (★) / no. One star per item.", "type": "categorical", "level": "study"},
+    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain (max 2 stars). Assess: ★ Study controls for the most important confounding factor; ★ Study controls for any additional factor (list them). If cohorts are not comparable on design or analysis → 0 stars.", "type": "categorical", "level": "study"},
+    {"name": "NOS_Outcome", "prompt": "NOS Outcome domain (max 3 stars). Assess: (1) Assessment of outcome — independent blind assessment (★) / record linkage (★) / self report / no description; (2) Follow-up long enough for outcomes to occur — yes (★) / no; (3) Adequacy of follow-up — complete follow-up all subjects accounted (★) / loss ≤20% unlikely to introduce bias (★) / follow-up <80% no description / no statement. One star per item.", "type": "categorical", "level": "study"},
+    {"name": "NOS_Total", "prompt": "NOS quality rating based on domain stars (AHRQ standards): Good = Selection 3-4 stars AND Comparability 1-2 stars AND Outcome 2-3 stars; Fair = Selection 2 stars AND Comparability 1-2 stars AND Outcome 2-3 stars; Poor = Selection 0-1 stars OR Comparability 0 stars OR Outcome 0-1 stars. Provide the star counts per domain and the quality rating.", "type": "categorical", "level": "study"},
 ]
 
 _BASE_DIAGNOSTIC = [
@@ -607,10 +608,14 @@ _BASE_DIAGNOSTIC = [
     {"name": "Sensitivity", "prompt": "Sensitivity with 95%CI.", "type": "text", "level": "study"},
     {"name": "Specificity", "prompt": "Specificity with 95%CI.", "type": "text", "level": "study"},
     {"name": "AUC", "prompt": "Area under the ROC curve with 95%CI.", "type": "text", "level": "study"},
-    {"name": "QUADAS_PatientSelection", "prompt": "QUADAS-2 Domain 1 — Patient selection bias. Assess: (1) Was a consecutive or random sample of patients enrolled? (2) Was a case-control design avoided? (3) Did the study avoid inappropriate exclusions? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
-    {"name": "QUADAS_IndexTest", "prompt": "QUADAS-2 Domain 2 — Index test bias. Assess: (1) Were the index test results interpreted without knowledge of the reference standard? (2) If a threshold was used, was it pre-specified? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
-    {"name": "QUADAS_ReferenceStandard", "prompt": "QUADAS-2 Domain 3 — Reference standard bias. Assess: (1) Is the reference standard likely to correctly classify the target condition? (2) Were the reference standard results interpreted without knowledge of the index test? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
-    {"name": "QUADAS_FlowTiming", "prompt": "QUADAS-2 Domain 4 — Flow and timing bias. Assess: (1) Was there an appropriate interval between index test and reference standard? (2) Did all patients receive a reference standard? (3) Did all patients receive the same reference standard? (4) Were all patients included in the analysis? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_PatientSelection", "prompt": "QUADAS-2 Domain 1 — Patient Selection. Signalling questions: (1.1) Was a consecutive or random sample of patients enrolled? (1.2) Was a case-control design avoided? (1.3) Did the study avoid inappropriate exclusions? Risk of Bias: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_Applicability_PatientSelection", "prompt": "QUADAS-2 Domain 1 — Applicability Concerns for Patient Selection. Does the study population match the review question in terms of setting, target condition, and inclusion criteria? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_IndexTest", "prompt": "QUADAS-2 Domain 2 — Index Test. Signalling questions: (2.1) Were the index test results interpreted without knowledge of the reference standard results? (2.2) Did the study prespecify the threshold for a positive result? Risk of Bias: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_Applicability_IndexTest", "prompt": "QUADAS-2 Domain 2 — Applicability Concerns for Index Test. Does the index test, its conduct, and interpretation match the review question? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_ReferenceStandard", "prompt": "QUADAS-2 Domain 3 — Reference Standard. Signalling questions: (3.1) Is the reference standard likely to correctly classify the target condition? (3.2) Were the reference standard results interpreted without knowledge of the index test results? Risk of Bias: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_Applicability_ReferenceStandard", "prompt": "QUADAS-2 Domain 3 — Applicability Concerns for Reference Standard. Does the reference standard and its conduct match the review question? Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
+    {"name": "QUADAS_FlowTiming", "prompt": "QUADAS-2 Domain 4 — Flow and Timing. Signalling questions: (4.1) Was there an appropriate interval between index test and reference standard? (4.2) Did all patients receive the same reference standard? (4.3) Were all patients included in the analysis? Risk of Bias: Low / High / Unclear. (Applicability not assessed for Domain 4)", "type": "categorical", "level": "study"},
+    {"name": "Overall_QUADAS", "prompt": "Overall QUADAS-2 risk of bias judgment based on Domains 1-4. Rules: (1) If ANY domain is High → Overall = High. (2) If NO domain is High but ANY domain is Unclear → Overall = Unclear. (3) If ALL 4 domains are Low → Overall = Low. Valid values: Low / High / Unclear", "type": "categorical", "level": "study"},
 ]
 
 _BASE_CASE_CONTROL = [
@@ -623,9 +628,10 @@ _BASE_CASE_CONTROL = [
     {"name": "Exposed_Controls", "prompt": "Number of controls with the exposure. Format: 'N (%)'.", "type": "text", "level": "study"},
     {"name": "Odds_Ratio", "prompt": "Odds ratio (OR) with 95% CI. If adjusted, specify. Format: 'OR=2.5 (95%CI 1.8-3.5)'.", "type": "text", "level": "study"},
     {"name": "Confounders_Adjusted", "prompt": "List of confounders adjusted for in the analysis.", "type": "text", "level": "study"},
-    {"name": "NOS_Selection", "prompt": "NOS Selection domain for case-control studies. Assess: (1) Adequate case definition, (2) Representativeness of cases, (3) Selection of controls, (4) Definition of controls. Valid values: 0-4 stars", "type": "categorical", "level": "study"},
-    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain. Assess: comparability of cases and controls on the basis of design or analysis — did the study control for the most important factor? Additional factors? Valid values: 0-2 stars", "type": "categorical", "level": "study"},
-    {"name": "NOS_Exposure", "prompt": "NOS Exposure domain. Assess: (1) Ascertainment of exposure (e.g., secure records, structured interview, blinded), (2) Same method of ascertainment for cases and controls, (3) Non-response rate (same rate in both groups). Valid values: 0-3 stars", "type": "categorical", "level": "study"},
+    {"name": "NOS_Selection", "prompt": "NOS Selection domain for case-control (max 4 stars). Assess: (1) Adequacy of case definition — yes (★) / no; (2) Representativeness of cases — consecutive or obviously representative series (★) / potential selection bias / no description; (3) Selection of controls — community controls (★) / hospital controls (★) / no description; (4) Definition of controls — no history of disease (★) / no description. One star per item.", "type": "categorical", "level": "study"},
+    {"name": "NOS_Comparability", "prompt": "NOS Comparability domain (max 2 stars). Assess: ★ Study controls for the most important confounding factor; ★ Study controls for any additional factor (list them). If cases and controls are not comparable → 0 stars.", "type": "categorical", "level": "study"},
+    {"name": "NOS_Exposure", "prompt": "NOS Exposure domain (max 3 stars). Assess: (1) Ascertainment of exposure — secure record (★) / structured interview blind to case/control status (★) / interview not blinded / self report or medical record only / no description; (2) Same method of ascertainment for cases and controls — yes (★) / no; (3) Non-response rate — same rate for both groups (★) / non-respondents described / rate different and no designation. One star per item.", "type": "categorical", "level": "study"},
+    {"name": "NOS_Total", "prompt": "NOS quality rating based on domain stars (AHRQ standards): Good = Selection 3-4 stars AND Comparability 1-2 stars AND Exposure 2-3 stars; Fair = Selection 2 stars AND Comparability 1-2 stars AND Exposure 2-3 stars; Poor = Selection 0-1 stars OR Comparability 0 stars OR Exposure 0-1 stars. Provide the star counts per domain and the quality rating.", "type": "categorical", "level": "study"},
 ]
 
 
@@ -660,23 +666,30 @@ For retrospective case-control studies, return 'CaseControl'. For retrospective 
 
 {topic[:500]}"""
 
-        study_type = "RCT"  # default
+        study_type = None
+        raw = ""
         try:
             st_resp = client.chat.completions.create(
                 model=config['model'],
                 messages=[{"role": "user", "content": study_type_prompt}],
-                temperature=0, max_tokens=20, timeout=30,
+                temperature=0, max_tokens=4096, timeout=30,
+                extra_body={"reasoning_effort": "low"},
             )
-            raw = (st_resp.choices[0].message.content or "").strip().lower()
+            raw = (st_resp.choices[0].message.content or "").strip()
+            print(f"[AIDE DEBUG] study_type raw='{raw}' finish_reason={st_resp.choices[0].finish_reason}")
+            raw_lower = raw.lower()
             study_map = {"rct": "RCT", "cohort": "Cohort", "casecontrol": "CaseControl",
                          "diagnostic": "Diagnostic", "crosssectional": "CrossSectional",
                          "caseseries": "CaseSeries"}
             for t in study_map:
-                if t in raw:
+                if t in raw_lower:
                     study_type = study_map[t]
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            return False, f"Failed to identify study type: {e}"
+
+        if not study_type:
+            return False, f"Could not identify study type. LLM returned: '{raw}'"
 
         # Step 2: Select base template
         if study_type == "RCT":

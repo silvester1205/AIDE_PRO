@@ -1794,13 +1794,35 @@ class ExportTab(QWidget):
             card = FieldCard(i, field_def)
             if i < len(field_data) and isinstance(field_data[i], dict):
                 fd = field_data[i]
-                card.set_data(fd.get('response', ''), fd.get('source_quote', ''), fd.get('source_page', None))
+                if fd.get('level') == 'arm':
+                    arm_values = fd.get('arm_values', [])
+                    for ai, val in enumerate(arm_values):
+                        card.set_data(val, '', None, arm_index=ai)
+                else:
+                    card.set_data(fd.get('response', ''), fd.get('source_quote', ''), fd.get('source_page', None))
             card.source_clicked.connect(mw.analyze_tab._on_src)
             mw.analyze_tab.card_layout.insertWidget(mw.analyze_tab.card_layout.count() - 1, card)
             mw.analyze_tab.field_cards.append(card)
         mw.current_row_idx = None
         total = len(prompts)
         mw.analyze_tab.recorded_lbl.setText(f"Restored {total} fields")
+        # Update coding_form_df with restored data
+        if mw.coding_form_df is not None and hist_id and hasattr(mw, '_history_id_map'):
+            row_idx = None
+            for k, v in mw._history_id_map.items():
+                if v == hist_id:
+                    row_idx = k
+                    break
+            if row_idx is not None and row_idx < len(mw.coding_form_df):
+                fi = 0
+                for fd in field_data:
+                    val = ''
+                    if isinstance(fd, dict):
+                        val = fd.get('response', '')
+                    if fi < len(mw.coding_form_df.columns):
+                        mw.coding_form_df.at[row_idx, mw.coding_form_df.columns[fi]] = str(val) if val else ''
+                    fi += 1
+                mw.export_tab.refresh(mw.coding_form_df)
         mw.tabs.setCurrentIndex(1)
 
     def _do_export(self, fmt: str):

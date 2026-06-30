@@ -1916,7 +1916,7 @@ class ExportTab(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AIDE Free v1")
+        self.setWindowTitle("AIDE Free v2")
         self.resize(1600, 950)
 
         # Shared state

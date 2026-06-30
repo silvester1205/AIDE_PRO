@@ -1,0 +1,101 @@
+========================================
+AIDE Pro v2 — 系统综述数据提取工具
+========================================
+
+一、下载与安装
+
+  无需安装，双击 AIDE Pro.exe 即可运行。
+  首次启动可能被 Windows Defender 拦截，
+  点击"更多信息"→"仍然运行"即可。
+
+二、使用流程
+
+  ⚙️ Setup 页面
+    1. 填写 API Key（不会保存在EXE中，存储在系统注册表）
+    2. URL Endpoint（填写模型访问地址）
+    3. 点 "Test Connection" 验证连接
+    4. 描述研究主题（使用 PICOS 框架），点 "AI Generate Template" 自动生成提取字段
+    5. 生成后可编辑字段名称和提示词，点 "Apply Template" 应用
+    6. 也可手动导入/导出编码表（.csv/.xlsx）
+
+  🔍 Analyze 页面
+    1. 点 "Open PDF" 或 File → Open PDF 选择要分析的文献
+    2. 点 "Analyze" 开始提取（状态栏显示各阶段耗时）
+    3. 审核提取结果：
+       · Study-level 字段：单个编辑框 + Source 按钮定位原文
+       · Arm-level 字段：每组一个编辑框 + 独立 Source 按钮
+       · "📍 Source" → PDF 中定位原文出处
+    4. Select 按钮可选取 PDF 文本并复制
+    5. 顶端搜索框进行 PDF 文本检索
+    6. 点 "Record All" 保存所有字段数据
+    7. 切到 Setup → 选择下一篇文献 → 返回 Analyze 继续
+
+  📋 Export 页面
+    - 预览所有记录数据
+    - "Export Excel" → 长格式导出（每组一行，适用于 Meta 分析）
+    - "Export Wide" → 宽格式导出（每篇文献一行）
+    - "↩️ Restore Session" → 选中某行，恢复完整会话（PDF + 字段卡片）
+    - "🗑️ Delete Selected Row" → 删除某行数据
+
+  📜 History 页面
+    - 每次分析和记录修改后自动保存
+    - 多选（Ctrl/Shift + 点击） → "Import to Table" → 批量导入编码表
+    - 不同编码表的条目不允许合并
+    - "🗑️ Delete" → 删除历史记录
+
+三、AI 生成模板
+
+  v2 支持 AI 自动生成提取模板：
+  1. 在 Setup 页面输入研究主题（建议使用 PICOS 格式）
+     示例："ICS for COPD. outcomes: onset of type 2 diabetes and osteoporosis. cohort"
+  2. 点击 "AI Generate Template"
+  3. AI 会自动识别研究类型并选择对应的评估工具：
+     · RCT → ROB2（5 个偏倚域 + Overall）
+     · Cohort → NOS（Selection + Comparability + Outcome + Total）
+     · Case-Control → NOS（Selection + Comparability + Exposure + Total）
+     · Diagnostic → QUADAS-2（4 个域 Risk of Bias + 3 个域 Applicability）
+  4. 生成后可在表格中编辑字段名称和提示词
+  5. 点 "Apply Template" 应用到 Analyze 页面
+
+四、字段级别（Study vs Arm）
+
+  · Study-level：每篇文献一个值（如作者、样本量、质量评估）
+  · Arm-level：每组/每个结局一个值（如各组样本量、各组结局数据）
+    - Arm-level 字段在 Analyze 页面按组展开
+    - 每组有独立的编辑框和 Source 按钮
+    - 导出时每组占一行（长格式）
+
+五、质量评估工具
+
+  ROB2（RCT）:
+    · D1 Randomization → D5 Selection of reported result
+    · Overall = f(D1~D5)
+    · 输出: Low risk / Some concerns / High risk
+
+  NOS（Cohort / Case-Control）:
+    · Selection (0-4 stars) + Comparability (0-2 stars) + Outcome/Exposure (0-3 stars)
+    · NOS Total: AHRQ 标准 — Good / Fair / Poor
+
+  QUADAS-2（Diagnostic）:
+    · 4 个域 Risk of Bias + 3 个域 Applicability（Domain 4 无 Applicability）
+    · Overall = f(D1~D4)
+    · 输出: Low / High / Unclear
+
+六、v2 新增功能
+
+  ✅ AI 自动生成提取模板（支持 RCT/Cohort/Case-Control/Diagnostic）
+  ✅ Study-level 与 Arm-level 字段分级
+  ✅ 每组独立 Source 追踪（引用 + 页码）
+  ✅ 内置质量评估（ROB2/NOS/QUADAS-2）
+  ✅ Record All 一键记录
+  ✅ 长格式 + 宽格式导出
+  ✅ 支持推理模型（MiMo 等）
+
+七、API Key 安全
+
+  API Key 保存在 Windows 注册表（HKCU\Software\AIDE），
+  不打包进 EXE，不写入代码文件，更换电脑需重新填写。
+
+八、联系作者
+
+  小红书：94373279426

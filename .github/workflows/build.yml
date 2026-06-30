@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir dist\AIDE_Pro
           copy "dist\AIDE Pro.exe" dist\AIDE_Pro\
-          copy AIDE_Pro_v1_使用说明.txt dist\AIDE_Pro\
+          copy AIDE_Pro_v2_使用说明.txt dist\AIDE_Pro\
         shell: cmd
       - uses: actions/upload-artifact@v4
         with:
@@ -42,7 +42,7 @@ jobs:
         run: |
           mkdir dist\AIDE_Free
           copy "dist\AIDE Free.exe" dist\AIDE_Free\
-          copy AIDE_Pro_v1_使用说明.txt dist\AIDE_Free\
+          copy AIDE_Pro_v2_使用说明.txt dist\AIDE_Free\
         shell: cmd
       - uses: actions/upload-artifact@v4
         with:
@@ -71,7 +71,7 @@ jobs:
         run: |
           mkdir -p dist_output/AIDE_Pro
           cp dist/AIDE_Pro dist_output/AIDE_Pro/
-          cp AIDE_Pro_v1_使用说明.txt dist_output/AIDE_Pro/
+          cp AIDE_Pro_v2_使用说明.txt dist_output/AIDE_Pro/
       - uses: actions/upload-artifact@v4
         with:
           name: AIDE-Mac-Pro
@@ -81,7 +81,7 @@ jobs:
         run: |
           mkdir -p dist_free/AIDE_Free
           cp dist/AIDE_Free dist_free/AIDE_Free/
-          cp AIDE_Pro_v1_使用说明.txt dist_free/AIDE_Free/
+          cp AIDE_Pro_v2_使用说明.txt dist_free/AIDE_Free/
       - uses: actions/upload-artifact@v4
         with:
           name: AIDE-Mac-Free

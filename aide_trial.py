@@ -1559,35 +1559,56 @@ class HistoryTab(QWidget):
                     "Cannot merge with a different coding form.")
                 return
         n = len(ref_prompts)
+        # Use field names from template_fields as column headers
+        tf = selected_entries[0].get('template_fields', [])
+        if tf and isinstance(tf, list) and len(tf) > 0 and isinstance(tf[0], dict):
+            field_names = [f.get('name', f.get('prompt', '')) for f in tf]
+        else:
+            field_names = ref_prompts
+        n = len(field_names)
         if mw.coding_form_df is not None and len(mw.coding_form_df) > 0:
             existing = [str(mw.coding_form_df.iloc[0, c]) if pd.notna(mw.coding_form_df.iloc[0, c]) else '' for c in range(min(n, len(mw.coding_form_df.columns)))]
-            if existing != ref_prompts:
+            if existing != field_names:
                 ans = QMessageBox.question(self, "Different Template",
                     "Replace current table with the new template? Current data will be lost.")
                 if ans != QMessageBox.StandardButton.Yes:
                     return
-                mw.coding_form_df = pd.DataFrame([ref_prompts])
+                mw.coding_form_df = pd.DataFrame([field_names])
                 mw.current_row_idx = None
                 if not hasattr(mw, '_history_id_map'):
                     mw._history_id_map = {}
         else:
-            mw.coding_form_df = pd.DataFrame([ref_prompts])
+            mw.coding_form_df = pd.DataFrame([field_names])
             mw._history_id_map = {}
-        mw.prompts = ref_prompts
+        mw.prompts = field_names
         if not hasattr(mw, '_history_id_map'):
             mw._history_id_map = {}
         imported = 0
         for e in selected_entries:
-            row_data = {}
-            for i in range(n):
-                fd = e.get('field_data', [])
-                val = ''
-                if i < len(fd) and isinstance(fd[i], dict):
-                    val = fd[i].get('response', '')
-                row_data[i] = val
-            nr = pd.DataFrame([row_data])
-            mw.coding_form_df = pd.concat([mw.coding_form_df, nr], ignore_index=True)
-            mw._history_id_map[len(mw.coding_form_df) - 1] = e.get('id', '')
+            etf = e.get('template_fields', [])
+            fd = e.get('field_data', [])
+            # Determine max arms across all arm-level fields
+            n_arms = 1
+            for i in range(min(len(fd), len(etf))):
+                if isinstance(fd[i], dict) and etf[i].get('level') == 'arm':
+                    av = fd[i].get('arm_values', [])
+                    if len(av) > n_arms:
+                        n_arms = len(av)
+            # Build rows: one per arm
+            for ai in range(n_arms):
+                row_data = {}
+                for i in range(n):
+                    val = ''
+                    if i < len(fd) and isinstance(fd[i], dict):
+                        if etf[i].get('level') == 'arm' if i < len(etf) else False:
+                            av = fd[i].get('arm_values', [])
+                            val = av[ai] if ai < len(av) else ''
+                        else:
+                            val = fd[i].get('response', '') if ai == 0 else ''
+                    row_data[i] = val
+                nr = pd.DataFrame([row_data])
+                mw.coding_form_df = pd.concat([mw.coding_form_df, nr], ignore_index=True)
+                mw._history_id_map[len(mw.coding_form_df) - 1] = e.get('id', '')
             imported += 1
         mw.current_row_idx = len(mw.coding_form_df) - 1
         self.status.setText(f"Imported {imported} study/studies to export table")
@@ -1783,11 +1804,15 @@ class ExportTab(QWidget):
                     mw.analyze_tab.analyze_btn.setEnabled(True)
         field_data = entry.get('field_data', [])
         prompts = entry.get('prompts', [])
-        mw.prompts = prompts
         # Try to restore template_fields if available
         template_fields = entry.get('template_fields', None)
         if template_fields:
             mw.template_fields = template_fields
+        # Use field names as prompts (for Export table headers)
+        if template_fields and isinstance(template_fields, list) and len(template_fields) > 0 and isinstance(template_fields[0], dict):
+            mw.prompts = [f.get('name', f.get('prompt', '')) for f in template_fields]
+        else:
+            mw.prompts = prompts
         mw.analyze_tab._clear_cards()
         for i, prompt in enumerate(prompts):
             field_def = template_fields[i] if template_fields and i < len(template_fields) else {'name': prompt, 'level': 'study', 'prompt': prompt}
@@ -1814,6 +1839,12 @@ class ExportTab(QWidget):
                     row_idx = k
                     break
             if row_idx is not None and row_idx < len(mw.coding_form_df):
+                # Update header row (row 0) with field names
+                if template_fields:
+                    for fi, tf in enumerate(template_fields):
+                        if fi < len(mw.coding_form_df.columns):
+                            name = tf.get('name', '') if isinstance(tf, dict) else ''
+                            mw.coding_form_df.at[0, mw.coding_form_df.columns[fi]] = name
                 fi = 0
                 for fd in field_data:
                     val = ''
